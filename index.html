@@ -1,312 +1,961 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shree Jagadamba Selection | Premium Fashion Catalogue</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
-    <!-- Firebase SDK Setup -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  Search, ShoppingCart, User, Menu, X, Plus, Edit2, Trash2, 
+  ChevronRight, Filter, Star, CheckCircle, Package, Truck, 
+  LayoutDashboard, ShoppingBag, Settings, LogOut, MessageCircle,
+  Clock, ArrowLeft, Image as ImageIcon
+} from 'lucide-react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getFirestore, collection, doc, setDoc, getDoc, addDoc, 
+  updateDoc, deleteDoc, onSnapshot, query, timestamp 
+} from 'firebase/firestore';
+import { 
+  getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut 
+} from 'firebase/auth';
 
-        // Firebase Configuration
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+// --- CONFIGURATION & FIREBASE ---
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'shoe-store-pro';
 
-        let selectedCategory = 'All';
-        let user = null;
+// --- STYLING CONSTANTS ---
+const COLORS = {
+  primary: '#2874f0', // Flipkart Blue
+  secondary: '#ff9f00', // Flipkart Orange
+  success: '#388e3c',
+  text: '#212121',
+  lightText: '#878787',
+  bg: '#f1f3f6'
+};
 
-        // Initialize App & Auth
-        async function initApp() {
-            try {
-                const userCredential = await signInAnonymously(auth);
-                user = userCredential.user;
-                if (user) {
-                    trackVisitor();
-                    loadProducts();
-                    loadVisitorCount();
-                }
-            } catch (error) {
-                console.error("Firebase Auth Error:", error);
-            }
-        }
+// --- APP COMPONENT ---
+export default function App() {
+  // Navigation & View State
+  const [view, setView] = useState('home'); // home, listing, detail, cart, checkout, order-success, admin-login, admin-dashboard
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  
+  // Data State
+  const [user, setUser] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [settings, setSettings] = useState({ shipping: 40, whatsapp: '919000000000', cod: true });
+  const [cart, setCart] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
-        // Track Visitors
-        async function trackVisitor() {
-            const visitorId = localStorage.getItem('sjs_visitor_id') || crypto.randomUUID();
-            if (!localStorage.getItem('sjs_visitor_id')) {
-                const visitorRef = collection(db, 'artifacts', appId, 'public', 'data', 'visitors');
-                await addDoc(visitorRef, { visitorId: visitorId, timestamp: serverTimestamp() });
-                localStorage.setItem('sjs_visitor_id', visitorId);
-            }
-        }
+  // Admin Auth State
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminCreds, setAdminCreds] = useState({ email: '', password: '' });
 
-        // Load Products
-        function loadProducts() {
-            const productRef = collection(db, 'artifacts', appId, 'public', 'data', 'products');
-            onSnapshot(productRef, (snapshot) => {
-                const grid = document.getElementById('productGrid');
-                grid.innerHTML = '';
-                let count = 0;
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    if (selectedCategory === 'All' || data.category === selectedCategory) {
-                        const card = createProductCard(doc.id, data);
-                        grid.appendChild(card);
-                        count++;
-                    }
-                });
-                document.getElementById('itemCount').innerText = count;
-            });
-        }
+  // --- INITIALIZATION ---
+  useEffect(() => {
+    const initAuth = async () => {
+      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+        await signInWithCustomToken(auth, __initial_auth_token);
+      } else {
+        await signInAnonymously(auth);
+      }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      // Simple logic: if user is authenticated and we're in admin view, check "admin" status
+      // In a real app, you'd check custom claims or a specific UID.
+    });
+    return () => unsubscribe();
+  }, []);
 
-        // Visitor Count
-        function loadVisitorCount() {
-            const visitorRef = collection(db, 'artifacts', appId, 'public', 'data', 'visitors');
-            onSnapshot(visitorRef, (snapshot) => {
-                document.getElementById('visitorCountDisplay').innerText = snapshot.size;
-            });
-        }
+  // --- DATA FETCHING ---
+  useEffect(() => {
+    if (!user) return;
 
-        function createProductCard(id, item) {
-            const div = document.createElement('div');
-            div.className = "product-card overflow-hidden group relative";
-            div.innerHTML = `
-                <button onclick="window.deleteItem('${id}')" class="delete-btn absolute top-2 right-2 z-10 bg-red-600 text-white w-8 h-8 rounded-full items-center justify-center shadow-lg hover:bg-red-700 transition">
-                    <i class="fas fa-trash-can text-sm"></i>
-                </button>
-                <div class="relative aspect-[4/5] bg-gray-50 overflow-hidden">
-                    <img src="${item.imageUrl}" class="w-full h-full object-cover group-hover:scale-110 transition duration-700">
-                </div>
-                <div class="p-4 text-center border-t border-gray-50">
-                    <h4 class="font-bold text-gray-800 mb-1 truncate text-sm uppercase">${item.name}</h4>
-                    <p class="text-[9px] text-gray-400 uppercase tracking-widest mb-2 font-medium">${item.category}</p>
-                    <p class="text-lg font-bold text-[#b8860b]">₹${item.price}</p>
-                    <div class="mt-3 py-1 px-2 warning-tag rounded text-[8px] font-bold uppercase">In Store Only</div>
-                </div>
-            `;
-            return div;
-        }
+    // Fetch Products (Public)
+    const productsRef = collection(db, 'artifacts', appId, 'public', 'data', 'products');
+    const unsubProducts = onSnapshot(productsRef, (snapshot) => {
+      const p = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setProducts(p);
+    }, (err) => console.error("Firestore Error:", err));
 
-        // --- GLOBAL ACTIONS ---
-        window.addItem = async () => {
-            const name = document.getElementById('itemName').value;
-            const price = document.getElementById('itemPrice').value;
-            const category = document.getElementById('itemCategory').value;
-            const imageInput = document.getElementById('imageInput');
+    // Fetch Settings (Public)
+    const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
+    const unsubSettings = onSnapshot(settingsRef, (doc) => {
+      if (doc.exists()) setSettings(doc.data());
+    });
 
-            if (!name || !price || imageInput.files.length === 0) {
-                alert("Kripya saari details bharein."); return;
-            }
+    // Fetch Orders (Private/Admin - only if isAdmin is true)
+    let unsubOrders = () => {};
+    if (isAdmin) {
+      const ordersRef = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
+      unsubOrders = onSnapshot(ordersRef, (snapshot) => {
+        const o = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setOrders(o.sort((a, b) => b.timestamp - a.timestamp));
+      });
+    }
 
-            const reader = new FileReader();
-            reader.readAsDataURL(imageInput.files[0]);
-            reader.onload = async () => {
-                const productRef = collection(db, 'artifacts', appId, 'public', 'data', 'products');
-                await addDoc(productRef, { name, price, category, imageUrl: reader.result, timestamp: serverTimestamp() });
-                alert("Item add ho gaya!");
-                document.getElementById('itemName').value = '';
-                document.getElementById('itemPrice').value = '';
-            };
-        };
+    return () => {
+      unsubProducts();
+      unsubSettings();
+      unsubOrders();
+    };
+  }, [user, isAdmin]);
 
-        window.deleteItem = async (id) => {
-            if (confirm("Kya aap ise catalogue se hatana chahte hain?")) {
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'products', id);
-                await deleteDoc(docRef);
-            }
-        };
+  // --- CART LOGIC ---
+  const addToCart = (product, size) => {
+    const item = { ...product, selectedSize: size, cartId: Date.now() };
+    setCart([...cart, item]);
+    setView('cart');
+  };
 
-        window.filterCategory = (cat, element) => {
-            selectedCategory = cat;
-            document.querySelectorAll('nav a').forEach(a => a.className = "text-gray-400 hover:text-[#b8860b] transition py-2");
-            element.className = "text-[#b8860b] border-b-2 border-[#b8860b] pb-1 py-2 font-bold";
-            loadProducts();
-        };
+  const removeFromCart = (cartId) => {
+    setCart(cart.filter(item => item.cartId !== cartId));
+  };
 
-        // NEW MODAL LOGIC
-        window.openAdminLogin = () => {
-            document.getElementById('loginModal').classList.remove('hidden');
-        };
+  const cartTotal = cart.reduce((sum, item) => sum + Number(item.price), 0);
 
-        window.closeAdminLogin = () => {
-            document.getElementById('loginModal').classList.add('hidden');
-        };
+  // --- UI HELPERS ---
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => {
+      const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = categoryFilter === 'All' || p.category === categoryFilter;
+      return matchesSearch && matchesCategory;
+    });
+  }, [products, searchQuery, categoryFilter]);
 
-        window.verifyAdmin = () => {
-            const pass = document.getElementById('adminPassword').value;
-            if (pass === "sirvitarun9828") {
-                document.getElementById('adminPanel').classList.remove('hidden');
-                document.body.classList.add('admin-active');
-                window.closeAdminLogin();
-                window.scrollTo({top:0, behavior:'smooth'});
-            } else {
-                alert("Galat password!");
-            }
-        };
+  // --- RENDERERS ---
 
-        window.logoutAdmin = () => {
-            document.getElementById('adminPanel').classList.add('hidden');
-            document.body.classList.remove('admin-active');
-        };
-
-        initApp();
-    </script>
-
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@300;400;500;600&display=swap');
-        body { font-family: 'Poppins', sans-serif; background-color: #fffaf0; }
-        .brand-font { font-family: 'Playfair Display', serif; }
-        .logo-bg { background: radial-gradient(circle, #f9e498 0%, #f1c40f 100%); }
-        .product-card { transition: all 0.3s ease; background: white; border-radius: 15px; border: 1px solid #f3e5ab; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .warning-tag { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
-        .delete-btn { display: none; }
-        body.admin-active .delete-btn { display: flex; }
-        .modal-overlay { background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); }
-    </style>
-</head>
-<body class="text-gray-900 overflow-x-hidden">
-
-    <!-- Header -->
-    <header class="shadow-md">
-        <div class="logo-bg py-10 px-4 flex flex-col items-center text-center">
-            <div class="mb-4 bg-white/40 p-5 rounded-full backdrop-blur-md border border-white/50 shadow-xl">
-                <i class="fas fa-crown text-5xl text-[#b8860b]"></i>
-            </div>
-            <h1 class="brand-font text-4xl md:text-6xl text-[#5d4037] font-bold uppercase tracking-tighter">Shree Jagadamba</h1>
-            <p class="brand-font text-xl md:text-3xl text-[#8d6e63] tracking-[0.4em] font-semibold mt-1">SELECTION</p>
-            <div class="mt-4 h-1.5 w-32 bg-[#b8860b] mx-auto rounded-full"></div>
-            <p class="text-xs mt-5 text-[#5d4037] font-black tracking-[0.2em] uppercase italic text-center">Anavatti, Shivamogga</p>
+  const Navbar = () => (
+    <nav className="bg-blue-600 text-white sticky top-0 z-50 shadow-md">
+      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('home')}>
+          <div className="bg-white p-1 rounded">
+            <ShoppingBag size={24} className="text-blue-600" />
+          </div>
+          <span className="font-bold text-xl italic tracking-tighter">ShoeHub</span>
         </div>
-        
-        <nav class="bg-white border-b overflow-x-auto no-scrollbar whitespace-nowrap sticky top-0 z-40">
-            <div class="flex justify-center space-x-10 py-4 px-6 text-[11px] font-bold uppercase tracking-widest">
-                <a href="javascript:void(0)" onclick="filterCategory('All', this)" class="text-[#b8860b] border-b-2 border-[#b8860b] pb-1">All Items</a>
-                <a href="javascript:void(0)" onclick="filterCategory('Saree', this)" class="text-gray-400 hover:text-[#b8860b] transition">Sarees</a>
-                <a href="javascript:void(0)" onclick="filterCategory('Kurti', this)" class="text-gray-400 hover:text-[#b8860b] transition">Kurtis</a>
-                <a href="javascript:void(0)" onclick="filterCategory('Kids Wear', this)" class="text-gray-400 hover:text-[#b8860b] transition">Kids Wear</a>
-                <a href="javascript:void(0)" onclick="filterCategory('Mens Wear', this)" class="text-gray-400 hover:text-[#b8860b] transition">Mens Wear</a>
-                <a href="javascript:void(0)" onclick="filterCategory('Other', this)" class="text-gray-400 hover:text-[#b8860b] transition">Other</a>
-            </div>
-        </nav>
-    </header>
 
-    <!-- Admin Panel (Only visible after login) -->
-    <section id="adminPanel" class="hidden max-w-6xl mx-auto mt-8 p-8 bg-yellow-50 rounded-[2rem] border-2 border-dashed border-[#d4af37] mx-4 lg:mx-auto">
-        <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
-            <div class="flex items-center gap-4 text-center md:text-left">
-                <div class="bg-white p-3 rounded-2xl shadow-md text-[#b8860b]"><i class="fas fa-user-shield text-2xl"></i></div>
-                <div>
-                    <h2 class="font-bold text-xl leading-tight text-gray-800 uppercase">Owner Dashboard</h2>
-                    <p class="text-[10px] text-green-600 font-bold uppercase tracking-widest">Admin Control Active</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-8">
-                <div class="text-center bg-white px-6 py-3 rounded-2xl shadow-sm border border-yellow-200">
-                    <p class="text-[9px] uppercase font-black text-gray-400">Total Visitors</p>
-                    <p id="visitorCountDisplay" class="text-2xl font-black text-gray-800">0</p>
-                </div>
-                <button onclick="logoutAdmin()" class="bg-white text-red-500 w-10 h-10 rounded-full shadow-lg hover:bg-red-50 flex items-center justify-center">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
+        <div className="flex-1 max-w-xl relative hidden md:block">
+          <input 
+            type="text" 
+            placeholder="Search for products, brands and more"
+            className="w-full py-2 px-4 rounded text-black outline-none"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Search className="absolute right-3 top-2 text-blue-600" size={20} />
         </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <input type="file" id="imageInput" class="hidden" accept="image/*" onchange="if(this.files.length) document.getElementById('fileLabel').innerText='Photo Ready'">
-            <label for="imageInput" id="fileLabel" class="flex items-center justify-center border-2 border-white rounded-2xl p-4 cursor-pointer bg-white text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center shadow-sm">
-                Select Photo
-            </label>
-            <input type="text" id="itemName" placeholder="Item Name" class="bg-white border-none p-4 rounded-2xl text-sm shadow-sm outline-none">
-            <input type="text" id="itemPrice" placeholder="Price (₹)" class="bg-white border-none p-4 rounded-xl text-sm shadow-sm outline-none">
-            <select id="itemCategory" class="bg-white border-none p-4 rounded-2xl text-sm shadow-sm outline-none font-bold text-gray-600">
-                <option value="Saree">Saree</option>
-                <option value="Kurti">Kurti</option>
-                <option value="Kids Wear">Kids Wear</option>
-                <option value="Mens Wear">Mens Wear</option>
-                <option value="Other">Other</option>
-            </select>
-            <button onclick="addItem()" class="bg-[#d4af37] text-white font-black py-4 rounded-2xl shadow-xl uppercase text-xs tracking-widest hover:bg-[#b8860b] transition">
-                Upload Stock
+
+        <div className="flex items-center gap-6">
+          <button 
+            className="font-semibold hover:bg-white/10 px-3 py-1 rounded transition"
+            onClick={() => setView('admin-login')}
+          >
+            Admin
+          </button>
+          <div className="relative cursor-pointer" onClick={() => setView('cart')}>
+            <ShoppingCart size={24} />
+            {cart.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-blue-600">
+                {cart.length}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      {/* Mobile Search Bar */}
+      <div className="md:hidden px-4 pb-3">
+        <div className="relative">
+          <input 
+            type="text" 
+            placeholder="Search for products..."
+            className="w-full py-2 px-4 rounded text-black outline-none"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Search className="absolute right-3 top-2 text-gray-400" size={20} />
+        </div>
+      </div>
+    </nav>
+  );
+
+  const Home = () => (
+    <div className="bg-gray-100 min-h-screen">
+      {/* Hero Banner */}
+      <div className="max-w-7xl mx-auto md:p-4">
+        <div className="bg-blue-800 h-48 md:h-80 rounded-lg overflow-hidden relative flex items-center px-8 text-white">
+          <div className="z-10">
+            <h1 className="text-3xl md:text-5xl font-bold mb-2">Festive Sale!</h1>
+            <p className="text-lg md:text-2xl mb-4">Up to 60% Off on Top Brands</p>
+            <button className="bg-white text-blue-800 font-bold px-6 py-2 rounded shadow-lg" onClick={() => setView('listing')}>
+              Shop Now
             </button>
+          </div>
+          <div className="absolute right-0 bottom-0 opacity-20 transform translate-x-10 translate-y-10">
+            <ShoppingBag size={300} />
+          </div>
         </div>
-    </section>
+      </div>
 
-    <!-- Catalogue -->
-    <main class="max-w-7xl mx-auto px-4 py-16">
-        <div class="text-center mb-12">
-            <h3 class="brand-font text-3xl md:text-4xl text-gray-800 tracking-wide uppercase font-bold text-center">Latest Collections</h3>
-            <p class="text-[10px] text-red-500 font-bold uppercase tracking-[0.3em] mt-3 italic text-center">
-                ⚠️ Store Visit Only • <span id="itemCount">0</span> Items Online
-            </p>
+      {/* Categories */}
+      <div className="bg-white py-4 shadow-sm mb-4">
+        <div className="max-w-6xl mx-auto flex overflow-x-auto gap-8 px-4 scrollbar-hide">
+          {['All', 'Men', 'Women', 'Kids', 'Sports', 'Casual'].map(cat => (
+            <div 
+              key={cat} 
+              className={`flex flex-col items-center cursor-pointer min-w-fit ${categoryFilter === cat ? 'text-blue-600 font-bold' : 'text-gray-600'}`}
+              onClick={() => { setCategoryFilter(cat); setView('listing'); }}
+            >
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-1 ${categoryFilter === cat ? 'bg-blue-50' : 'bg-gray-100'}`}>
+                <Package size={24} />
+              </div>
+              <span className="text-xs uppercase tracking-wider">{cat}</span>
+            </div>
+          ))}
         </div>
-        <div id="productGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-10"></div>
-    </main>
+      </div>
 
-    <!-- Info -->
-    <section class="max-w-7xl mx-auto px-4 py-16 border-t border-[#f3e5ab]">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-10 items-center bg-white p-10 md:p-16 rounded-[3rem] shadow-sm border border-gray-100">
-            <div>
-                <h3 class="brand-font text-4xl mb-6 uppercase font-bold text-gray-800">Showroom Info</h3>
-                <p class="text-gray-500 text-sm mb-8 font-medium italic">Explore our premium collection online. Please note that we are a physical-only showroom and do not offer online deliveries.</p>
-                <div class="flex items-center gap-4 text-gray-700 font-bold bg-[#fffaf0] p-5 rounded-2xl border border-[#f3e5ab] w-fit">
-                    <i class="fas fa-clock text-[#b8860b] text-2xl"></i>
-                    <div class="flex flex-col">
-                        <span class="text-[10px] uppercase text-gray-400 tracking-widest">Opening Hours</span>
-                        <span class="tracking-widest uppercase text-sm">10:00 AM – 9:00 PM</span>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-red-50 border border-red-100 p-10 rounded-3xl">
-                <h4 class="text-red-600 font-black text-xs uppercase tracking-[0.3em] mb-4 flex items-center gap-3">
-                    <i class="fas fa-exclamation-triangle"></i> Official Notice
-                </h4>
-                <p class="text-[12px] text-red-500 leading-relaxed font-bold text-center">
-                    This website serves as a digital display catalogue. No online orders are processed here. Kindly visit our showroom in Anavatti, Shivamogga.
-                </p>
-            </div>
+      {/* Featured Products */}
+      <div className="max-w-6xl mx-auto px-4 pb-12">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">Featured Deals</h2>
+          <button className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold shadow hover:bg-blue-700" onClick={() => setView('listing')}>VIEW ALL</button>
         </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="bg-white py-16 text-center border-t border-[#f3e5ab]">
-        <div class="brand-font text-2xl text-[#b8860b] mb-2 tracking-widest font-black uppercase text-center">Shree Jagadamba Selection</div>
-        <p class="text-[10px] text-gray-400 uppercase tracking-[0.4em] mb-12 font-black text-center">Anavatti, Shivamogga</p>
-        <div class="flex flex-col items-center gap-8">
-            <p class="text-[9px] text-gray-300 uppercase tracking-widest italic text-center">© 2026. This is a digital catalogue only. All rights reserved.</p>
-            <button onclick="openAdminLogin()" class="flex items-center gap-3 text-[11px] text-gray-400 hover:text-[#b8860b] border border-gray-100 px-8 py-3 rounded-full transition-all font-black uppercase tracking-[0.2em]">
-                <i class="fas fa-lock"></i> Owner Login
-            </button>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {products.slice(0, 4).map(p => (
+            <ProductCard key={p.id} product={p} />
+          ))}
         </div>
-    </footer>
-
-    <!-- LOGIN MODAL -->
-    <div id="loginModal" class="hidden fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl">
-            <div class="text-center mb-6">
-                <div class="w-16 h-16 bg-[#fffaf0] text-[#b8860b] rounded-full flex items-center justify-center mx-auto mb-4 border border-[#f3e5ab]">
-                    <i class="fas fa-user-lock text-2xl"></i>
-                </div>
-                <h2 class="brand-font text-xl font-bold uppercase tracking-wider text-center">Owner Access</h2>
-                <p class="text-[10px] text-gray-400 uppercase tracking-widest mt-1 text-center font-bold">Manage Catalogue</p>
-            </div>
-            <div class="space-y-4">
-                <input type="password" id="adminPassword" placeholder="Enter Password" class="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-center font-bold tracking-widest outline-none focus:border-[#b8860b]">
-                <div class="flex gap-2">
-                    <button onclick="closeAdminLogin()" class="flex-1 py-3 text-xs font-bold text-gray-400 hover:text-gray-600 uppercase">Cancel</button>
-                    <button onclick="verifyAdmin()" class="flex-[2] py-4 bg-[#d4af37] text-white rounded-xl text-xs font-bold shadow-lg uppercase tracking-widest">Verify</button>
-                </div>
-            </div>
-        </div>
+      </div>
     </div>
+  );
 
-</body>
-</html>
+  const ProductCard = ({ product }) => (
+    <div 
+      className="bg-white border rounded-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow group h-full flex flex-col"
+      onClick={() => { setSelectedProduct(product); setView('detail'); }}
+    >
+      <div className="relative h-40 md:h-56 bg-gray-50 flex items-center justify-center overflow-hidden">
+        {product.images && product.images[0] ? (
+          <img src={product.images[0]} alt={product.name} className="w-full h-full object-contain group-hover:scale-110 transition-transform" />
+        ) : (
+          <ImageIcon size={48} className="text-gray-300" />
+        )}
+        <div className="absolute top-2 right-2 bg-white/80 p-1.5 rounded-full">
+          <Star size={16} className="text-yellow-500 fill-yellow-500" />
+        </div>
+      </div>
+      <div className="p-3 flex flex-col flex-1">
+        <h3 className="font-semibold text-sm line-clamp-1 mb-1">{product.name}</h3>
+        <p className="text-xs text-gray-500 mb-2 uppercase">{product.category}</p>
+        <div className="flex items-center gap-2 mt-auto">
+          <span className="font-bold text-lg">₹{product.price}</span>
+          {product.oldPrice && <span className="text-xs text-gray-400 line-through">₹{product.oldPrice}</span>}
+          <span className="text-green-600 text-xs font-bold">Free Delivery</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const ProductDetail = () => {
+    const [selectedSize, setSelectedSize] = useState(null);
+    const [mainImage, setMainImage] = useState(selectedProduct.images?.[0] || '');
+
+    if (!selectedProduct) return null;
+
+    return (
+      <div className="max-w-6xl mx-auto bg-white min-h-screen p-4 md:pt-8">
+        <div className="grid md:grid-cols-2 gap-8">
+          {/* Images */}
+          <div className="space-y-4">
+            <div className="border rounded-lg p-4 flex items-center justify-center bg-white h-96">
+               {mainImage ? (
+                  <img src={mainImage} className="max-h-full object-contain" alt="main" />
+               ) : (
+                  <ImageIcon size={100} className="text-gray-100" />
+               )}
+            </div>
+            <div className="flex gap-2 overflow-x-auto">
+              {selectedProduct.images?.map((img, idx) => (
+                <div 
+                  key={idx}
+                  className={`border-2 rounded p-1 cursor-pointer w-20 h-20 flex-shrink-0 ${mainImage === img ? 'border-blue-600' : 'border-transparent'}`}
+                  onClick={() => setMainImage(img)}
+                >
+                  <img src={img} className="w-full h-full object-contain" alt={`thumb-${idx}`} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Details */}
+          <div className="space-y-6">
+            <div>
+              <nav className="text-xs text-gray-500 mb-2">Home {'>'} {selectedProduct.category} {'>'} {selectedProduct.name}</nav>
+              <h1 className="text-2xl font-bold">{selectedProduct.name}</h1>
+              <div className="flex items-center gap-4 mt-2">
+                <div className="bg-green-600 text-white text-xs font-bold px-2 py-0.5 rounded flex items-center gap-1">
+                  4.2 <Star size={12} fill="white" />
+                </div>
+                <span className="text-gray-500 text-sm font-medium">1,245 Ratings & 342 Reviews</span>
+              </div>
+            </div>
+
+            <div className="flex items-baseline gap-3">
+              <span className="text-3xl font-bold">₹{selectedProduct.price}</span>
+              <span className="text-gray-400 line-through text-lg">₹{Number(selectedProduct.price) + 500}</span>
+              <span className="text-green-600 font-bold">Extra ₹500 off</span>
+            </div>
+
+            <div>
+              <h3 className="font-bold mb-3">Select Size</h3>
+              <div className="flex flex-wrap gap-2">
+                {selectedProduct.sizes?.map(size => (
+                  <button 
+                    key={size}
+                    onClick={() => setSelectedSize(size)}
+                    className={`border px-6 py-2 rounded font-bold transition ${selectedSize === size ? 'border-blue-600 text-blue-600 bg-blue-50' : 'hover:border-blue-600'}`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-4 pt-4">
+              <button 
+                className="flex-1 bg-secondary text-white font-bold py-4 rounded shadow-lg flex items-center justify-center gap-2 hover:bg-orange-600 transition"
+                onClick={() => {
+                  if(!selectedSize) return alert("Please select a size");
+                  addToCart(selectedProduct, selectedSize);
+                }}
+              >
+                <ShoppingCart size={20} /> ADD TO CART
+              </button>
+              <button 
+                className="flex-1 bg-blue-600 text-white font-bold py-4 rounded shadow-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition"
+                onClick={() => {
+                   const text = `Hi, I want to buy: ${selectedProduct.name}\nSize: ${selectedSize || 'Not specified'}\nPrice: ₹${selectedProduct.price}`;
+                   window.open(`https://wa.me/${settings.whatsapp}?text=${encodeURIComponent(text)}`, '_blank');
+                }}
+              >
+                <MessageCircle size={20} /> ORDER ON WHATSAPP
+              </button>
+            </div>
+
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <h3 className="font-bold mb-2">Product Details</h3>
+              <p className="text-sm text-gray-700 leading-relaxed">{selectedProduct.description}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const CartView = () => (
+    <div className="max-w-4xl mx-auto p-4 md:py-8">
+      <h1 className="text-2xl font-bold mb-6">Shopping Cart ({cart.length})</h1>
+      {cart.length === 0 ? (
+        <div className="bg-white p-12 text-center rounded-lg shadow">
+          <ShoppingBag size={80} className="mx-auto text-gray-200 mb-4" />
+          <h2 className="text-xl font-bold mb-2">Your cart is empty!</h2>
+          <p className="text-gray-500 mb-6">Explore our wide selection and find something you like</p>
+          <button className="bg-blue-600 text-white font-bold px-8 py-3 rounded shadow" onClick={() => setView('home')}>Shop Now</button>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 space-y-4">
+            {cart.map(item => (
+              <div key={item.cartId} className="bg-white p-4 rounded shadow-sm border flex gap-4">
+                <div className="w-24 h-24 bg-gray-50 rounded flex-shrink-0">
+                  <img src={item.images?.[0]} className="w-full h-full object-contain" alt={item.name} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold">{item.name}</h3>
+                  <p className="text-sm text-gray-500">Size: {item.selectedSize} | {item.category}</p>
+                  <div className="flex items-baseline gap-2 mt-2">
+                    <span className="font-bold text-lg">₹{item.price}</span>
+                  </div>
+                  <button 
+                    className="mt-2 text-red-500 text-xs font-bold hover:underline flex items-center gap-1"
+                    onClick={() => removeFromCart(item.cartId)}
+                  >
+                    <Trash2 size={12} /> REMOVE
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="bg-white p-6 rounded shadow-sm border h-fit sticky top-24">
+            <h2 className="text-gray-500 font-bold text-sm uppercase border-b pb-3 mb-4">Price Details</h2>
+            <div className="space-y-4 text-sm">
+              <div className="flex justify-between">
+                <span>Price ({cart.length} items)</span>
+                <span>₹{cartTotal}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Delivery Charges</span>
+                <span className="text-green-600">FREE</span>
+              </div>
+              <div className="flex justify-between font-bold text-lg border-t pt-4">
+                <span>Total Amount</span>
+                <span>₹{cartTotal}</span>
+              </div>
+              <button 
+                className="w-full bg-secondary text-white font-bold py-4 rounded shadow-lg mt-4 hover:bg-orange-600 transition"
+                onClick={() => setView('checkout')}
+              >
+                PLACE ORDER
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const CheckoutView = () => {
+    const [form, setForm] = useState({ name: '', phone: '', address: '', pincode: '', payment: 'COD' });
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      setLoading(true);
+      try {
+        const orderData = {
+          customer: form,
+          items: cart,
+          total: cartTotal,
+          status: 'Pending',
+          timestamp: Date.now()
+        };
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), orderData);
+        
+        // Prepare WhatsApp message
+        const itemsList = cart.map(i => `- ${i.name} (Size: ${i.selectedSize})`).join('\n');
+        const text = `🔥 *NEW ORDER PLACED!*\n\n*Customer:* ${form.name}\n*Phone:* ${form.phone}\n*Total:* ₹${cartTotal}\n\n*Items:*\n${itemsList}\n\n*Address:* ${form.address}, ${form.pincode}\n*Payment:* ${form.payment}`;
+        
+        window.open(`https://wa.me/${settings.whatsapp}?text=${encodeURIComponent(text)}`, '_blank');
+        
+        setCart([]);
+        setView('order-success');
+      } catch (err) {
+        console.error(err);
+      }
+      setLoading(false);
+    };
+
+    return (
+      <div className="max-w-2xl mx-auto p-4 py-8">
+        <div className="bg-white p-6 rounded-lg shadow-md border">
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+            <Package className="text-blue-600" /> Delivery Details
+          </h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-600 mb-1">Full Name</label>
+              <input 
+                required
+                type="text" 
+                className="w-full p-3 border rounded focus:ring-2 focus:ring-blue-600 outline-none"
+                value={form.name}
+                onChange={(e) => setForm({...form, name: e.target.value})}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-600 mb-1">Mobile Number</label>
+                <input 
+                  required
+                  type="tel" 
+                  className="w-full p-3 border rounded focus:ring-2 focus:ring-blue-600 outline-none"
+                  value={form.phone}
+                  onChange={(e) => setForm({...form, phone: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-600 mb-1">Pincode</label>
+                <input 
+                  required
+                  type="text" 
+                  className="w-full p-3 border rounded focus:ring-2 focus:ring-blue-600 outline-none"
+                  value={form.pincode}
+                  onChange={(e) => setForm({...form, pincode: e.target.value})}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-600 mb-1">Full Address</label>
+              <textarea 
+                required
+                className="w-full p-3 border rounded h-24 focus:ring-2 focus:ring-blue-600 outline-none"
+                value={form.address}
+                onChange={(e) => setForm({...form, address: e.target.value})}
+              ></textarea>
+            </div>
+            
+            <div className="pt-4">
+              <h3 className="font-bold mb-3">Payment Method</h3>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 p-3 border rounded cursor-pointer hover:bg-gray-50">
+                  <input type="radio" name="pay" checked readOnly />
+                  <span className="font-medium">Cash on Delivery (COD)</span>
+                </label>
+              </div>
+            </div>
+
+            <button 
+              disabled={loading}
+              className="w-full bg-blue-600 text-white font-bold py-4 rounded shadow-lg mt-6 hover:bg-blue-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {loading ? 'Processing...' : 'CONFIRM ORDER'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
+  // --- ADMIN COMPONENTS ---
+
+  const AdminLogin = () => {
+    const handleLogin = (e) => {
+      e.preventDefault();
+      // Simple logic: check against hardcoded "admin123" or similar for demo
+      if (adminCreds.password === 'admin123') {
+        setIsAdmin(true);
+        setView('admin-dashboard');
+      } else {
+        alert("Invalid Admin Password");
+      }
+    };
+
+    return (
+      <div className="flex items-center justify-center min-h-[80vh] bg-gray-100 px-4">
+        <div className="bg-white p-8 rounded-lg shadow-xl border max-w-sm w-full">
+          <div className="text-center mb-6">
+            <LayoutDashboard size={48} className="mx-auto text-blue-600 mb-2" />
+            <h1 className="text-2xl font-bold">Admin Portal</h1>
+            <p className="text-gray-500 text-sm">Secure login to your dashboard</p>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Admin Password</label>
+              <input 
+                type="password" 
+                className="w-full p-3 border rounded focus:ring-2 focus:ring-blue-600 outline-none"
+                placeholder="Enter password"
+                value={adminCreds.password}
+                onChange={(e) => setAdminCreds({...adminCreds, password: e.target.value})}
+              />
+            </div>
+            <button className="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition">
+              SIGN IN
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
+  const AdminDashboard = () => {
+    const [activeTab, setActiveTab] = useState('overview'); // overview, products, orders, settings
+    const [showProductModal, setShowProductModal] = useState(false);
+    const [editingProduct, setEditingProduct] = useState(null);
+
+    const stats = {
+      total: orders.length,
+      pending: orders.filter(o => o.status === 'Pending').length,
+      delivered: orders.filter(o => o.status === 'Delivered').length,
+      revenue: orders.filter(o => o.status === 'Delivered').reduce((s, o) => s + Number(o.total), 0)
+    };
+
+    const ProductForm = () => {
+      const [formData, setFormData] = useState(editingProduct || {
+        name: '', price: '', category: 'Men', description: '', sizes: ['7', '8', '9', '10'], images: ['']
+      });
+
+      const save = async () => {
+        const ref = collection(db, 'artifacts', appId, 'public', 'data', 'products');
+        if (editingProduct) {
+          await updateDoc(doc(ref, editingProduct.id), formData);
+        } else {
+          await addDoc(ref, { ...formData, createdAt: Date.now() });
+        }
+        setShowProductModal(false);
+        setEditingProduct(null);
+      };
+
+      return (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-white">
+              <h2 className="text-xl font-bold">{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
+              <button onClick={() => { setShowProductModal(false); setEditingProduct(null); }}><X /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-500 block mb-1">Product Name</label>
+                  <input className="w-full p-2 border rounded" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-500 block mb-1">Category</label>
+                  <select className="w-full p-2 border rounded" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+                    <option>Men</option>
+                    <option>Women</option>
+                    <option>Kids</option>
+                    <option>Sports</option>
+                    <option>Casual</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-500 block mb-1">Price (₹)</label>
+                  <input type="number" className="w-full p-2 border rounded" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-500 block mb-1">Sizes (Comma separated)</label>
+                  <input className="w-full p-2 border rounded" placeholder="7, 8, 9, 10" value={formData.sizes?.join(', ')} onChange={e => setFormData({...formData, sizes: e.target.value.split(',').map(s => s.trim())})} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 block mb-1">Description</label>
+                <textarea className="w-full p-2 border rounded h-24" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 block mb-1">Image URL (Main)</label>
+                <input className="w-full p-2 border rounded" placeholder="https://..." value={formData.images?.[0]} onChange={e => setFormData({...formData, images: [e.target.value, ...(formData.images?.slice(1) || [])]})} />
+              </div>
+              <button className="w-full bg-blue-600 text-white font-bold py-3 rounded" onClick={save}>SAVE PRODUCT</button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div className="flex flex-col md:flex-row min-h-screen bg-gray-50">
+        {/* Sidebar */}
+        <div className="w-full md:w-64 bg-white border-r shadow-sm">
+          <div className="p-6 flex items-center gap-2 border-b">
+            <LayoutDashboard className="text-blue-600" />
+            <span className="font-bold text-xl">Admin Panel</span>
+          </div>
+          <nav className="p-4 space-y-2">
+            {[
+              { id: 'overview', icon: LayoutDashboard, label: 'Overview' },
+              { id: 'products', icon: Package, label: 'Products' },
+              { id: 'orders', icon: ShoppingCart, label: 'Orders' },
+              { id: 'settings', icon: Settings, label: 'Settings' }
+            ].map(item => (
+              <button 
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full flex items-center gap-3 p-3 rounded-lg font-medium transition ${activeTab === item.id ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+              >
+                <item.icon size={20} /> {item.label}
+              </button>
+            ))}
+            <button className="w-full flex items-center gap-3 p-3 text-red-500 font-medium hover:bg-red-50 rounded-lg mt-10" onClick={() => { setIsAdmin(false); setView('home'); }}>
+              <LogOut size={20} /> Logout
+            </button>
+          </nav>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 p-4 md:p-8">
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              <h1 className="text-2xl font-bold">Dashboard Overview</h1>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { label: 'Total Orders', value: stats.total, color: 'blue' },
+                  { label: 'Pending', value: stats.pending, color: 'orange' },
+                  { label: 'Delivered', value: stats.delivered, color: 'green' },
+                  { label: 'Revenue', value: `₹${stats.revenue}`, color: 'purple' }
+                ].map((s, i) => (
+                  <div key={i} className="bg-white p-6 rounded-xl border shadow-sm">
+                    <p className="text-gray-500 text-sm font-bold uppercase mb-1">{s.label}</p>
+                    <p className={`text-3xl font-black text-${s.color}-600`}>{s.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-white p-6 rounded-xl border shadow-sm">
+                <h3 className="font-bold mb-4">Recent Orders</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-gray-50 border-y">
+                      <tr>
+                        <th className="p-3">Order ID</th>
+                        <th className="p-3">Customer</th>
+                        <th className="p-3">Items</th>
+                        <th className="p-3">Total</th>
+                        <th className="p-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orders.slice(0, 5).map(o => (
+                        <tr key={o.id} className="border-b">
+                          <td className="p-3 font-mono text-xs text-blue-600">#{o.id.slice(-6)}</td>
+                          <td className="p-3 font-medium">{o.customer?.name}</td>
+                          <td className="p-3">{o.items?.length} items</td>
+                          <td className="p-3 font-bold">₹{o.total}</td>
+                          <td className="p-3">
+                             <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${o.status === 'Pending' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
+                              {o.status}
+                             </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'products' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold">Products Inventory</h1>
+                <button className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2 font-bold" onClick={() => { setShowProductModal(true); setEditingProduct(null); }}>
+                  <Plus size={20} /> ADD PRODUCT
+                </button>
+              </div>
+              <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 border-b">
+                    <tr className="text-xs font-bold text-gray-500 uppercase">
+                      <th className="p-4">Product</th>
+                      <th className="p-4">Category</th>
+                      <th className="p-4">Price</th>
+                      <th className="p-4">Sizes</th>
+                      <th className="p-4">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {products.map(p => (
+                      <tr key={p.id} className="border-b hover:bg-gray-50 transition">
+                        <td className="p-4 flex items-center gap-3">
+                          <img src={p.images?.[0]} className="w-10 h-10 object-contain bg-gray-100 rounded" alt="" />
+                          <span className="font-bold">{p.name}</span>
+                        </td>
+                        <td className="p-4"><span className="text-sm bg-gray-100 px-2 py-1 rounded uppercase font-bold text-gray-600">{p.category}</span></td>
+                        <td className="p-4 font-bold">₹{p.price}</td>
+                        <td className="p-4 text-xs font-medium text-gray-500">{p.sizes?.join(', ')}</td>
+                        <td className="p-4">
+                          <div className="flex gap-2">
+                            <button onClick={() => { setEditingProduct(p); setShowProductModal(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={16} /></button>
+                            <button onClick={async () => { if(confirm("Delete product?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', p.id)) }} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {showProductModal && <ProductForm />}
+            </div>
+          )}
+
+          {activeTab === 'orders' && (
+            <div className="space-y-6">
+              <h1 className="text-2xl font-bold">Orders Management</h1>
+              <div className="space-y-4">
+                {orders.map(o => (
+                  <div key={o.id} className="bg-white p-4 rounded-xl border shadow-sm flex flex-col md:flex-row gap-6">
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <p className="text-xs font-bold text-blue-600 mb-1 tracking-widest uppercase">Order #{o.id.slice(-8)}</p>
+                          <h3 className="text-lg font-bold">{o.customer?.name}</h3>
+                          <p className="text-sm text-gray-500">{new Date(o.timestamp).toLocaleString()}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-black">₹{o.total}</p>
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${o.status === 'Pending' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
+                            {o.status}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-2 border-t pt-4">
+                        {o.items?.map((item, idx) => (
+                          <div key={idx} className="flex justify-between text-sm">
+                            <span className="font-medium">{item.name} (Size {item.selectedSize})</span>
+                            <span className="font-bold">₹{item.price}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="w-full md:w-64 border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6 space-y-3">
+                      <p className="text-xs font-bold text-gray-400 uppercase">Contact & Delivery</p>
+                      <p className="text-sm"><strong>Phone:</strong> {o.customer?.phone}</p>
+                      <p className="text-sm leading-tight"><strong>Address:</strong> {o.customer?.address}, {o.customer?.pincode}</p>
+                      <div className="pt-4 space-y-2">
+                        {o.status === 'Pending' && (
+                          <button 
+                            className="w-full bg-green-600 text-white text-xs font-bold py-2 rounded shadow flex items-center justify-center gap-2"
+                            onClick={async () => {
+                              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', o.id), { status: 'Delivered' });
+                            }}
+                          >
+                            <CheckCircle size={14} /> MARK AS DELIVERED
+                          </button>
+                        )}
+                         <button 
+                            className="w-full bg-gray-100 text-gray-600 text-xs font-bold py-2 rounded hover:bg-gray-200 flex items-center justify-center gap-2"
+                            onClick={() => {
+                               const text = `Hi ${o.customer?.name}, your order for ${o.items?.length} items is ${o.status}. Total: ₹${o.total}`;
+                               window.open(`https://wa.me/${o.customer?.phone.replace(/\s+/g, '')}?text=${encodeURIComponent(text)}`, '_blank');
+                            }}
+                          >
+                            <MessageCircle size={14} /> CONTACT ON WHATSAPP
+                          </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="max-w-xl space-y-6">
+              <h1 className="text-2xl font-bold">Store Settings</h1>
+              <div className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
+                <div>
+                  <label className="text-sm font-bold block mb-1">Owner WhatsApp Number (with country code)</label>
+                  <input className="w-full p-2 border rounded" placeholder="919000000000" value={settings.whatsapp} onChange={e => setSettings({...settings, whatsapp: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-sm font-bold block mb-1">Flat Shipping Fee (₹)</label>
+                  <input type="number" className="w-full p-2 border rounded" value={settings.shipping} onChange={e => setSettings({...settings, shipping: e.target.value})} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="cod" checked={settings.cod} onChange={e => setSettings({...settings, cod: e.target.checked})} />
+                  <label htmlFor="cod" className="text-sm font-bold">Allow Cash on Delivery</label>
+                </div>
+                <button 
+                  className="w-full bg-blue-600 text-white font-bold py-3 rounded mt-4"
+                  onClick={async () => {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), settings);
+                    alert("Settings updated!");
+                  }}
+                >
+                  SAVE CONFIGURATION
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const OrderSuccess = () => (
+    <div className="max-w-md mx-auto p-4 py-16 text-center space-y-6">
+      <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+        <CheckCircle size={60} />
+      </div>
+      <h1 className="text-3xl font-black text-gray-800">Order Placed!</h1>
+      <p className="text-gray-600 leading-relaxed">
+        Thank you for shopping with us. Your order details have been sent to our team. We will contact you shortly via WhatsApp for confirmation.
+      </p>
+      <div className="pt-6">
+        <button 
+          className="w-full bg-blue-600 text-white font-bold py-4 rounded-lg shadow-xl hover:shadow-2xl transition-all flex items-center justify-center gap-2"
+          onClick={() => setView('home')}
+        >
+          <ArrowLeft size={20} /> CONTINUE SHOPPING
+        </button>
+      </div>
+    </div>
+  );
+
+  // --- MAIN ROUTER ---
+  return (
+    <div className="font-sans text-[#212121] bg-gray-100 min-h-screen">
+      {!isAdmin && <Navbar />}
+      
+      <main className={`${!isAdmin ? 'pt-4' : ''}`}>
+        {view === 'home' && <Home />}
+        {view === 'listing' && (
+          <div className="max-w-6xl mx-auto px-4 py-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">Showing {filteredProducts.length} items for {categoryFilter}</h2>
+              <div className="flex gap-2">
+                <button className="flex items-center gap-1 border px-3 py-1.5 rounded bg-white text-sm font-medium"><Filter size={16} /> Filter</button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {filteredProducts.map(p => <ProductCard key={p.id} product={p} />)}
+            </div>
+          </div>
+        )}
+        {view === 'detail' && <ProductDetail />}
+        {view === 'cart' && <CartView />}
+        {view === 'checkout' && <CheckoutView />}
+        {view === 'order-success' && <OrderSuccess />}
+        {view === 'admin-login' && <AdminLogin />}
+        {view === 'admin-dashboard' && isAdmin && <AdminDashboard />}
+      </main>
+
+      {/* Footer (Public) */}
+      {!isAdmin && view !== 'checkout' && (
+        <footer className="bg-[#172337] text-white py-12 mt-12 px-4">
+          <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div>
+              <h4 className="text-gray-400 text-xs font-bold uppercase mb-4 tracking-widest">ABOUT</h4>
+              <ul className="text-xs space-y-2">
+                <li>Contact Us</li>
+                <li>About Us</li>
+                <li>Stories</li>
+                <li>Press</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-gray-400 text-xs font-bold uppercase mb-4 tracking-widest">HELP</h4>
+              <ul className="text-xs space-y-2">
+                <li>Payments</li>
+                <li>Shipping</li>
+                <li>Cancellation</li>
+                <li>FAQ</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-gray-400 text-xs font-bold uppercase mb-4 tracking-widest">POLICY</h4>
+              <ul className="text-xs space-y-2">
+                <li>Return Policy</li>
+                <li>Terms Of Use</li>
+                <li>Security</li>
+                <li>Privacy</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-gray-400 text-xs font-bold uppercase mb-4 tracking-widest">SOCIAL</h4>
+              <ul className="text-xs space-y-2">
+                <li>Facebook</li>
+                <li>Twitter</li>
+                <li>YouTube</li>
+                <li>Instagram</li>
+              </ul>
+            </div>
+          </div>
+          <div className="max-w-6xl mx-auto border-t border-gray-700 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+             <div className="flex items-center gap-8 text-xs">
+                <span className="flex items-center gap-1">💼 Become a Seller</span>
+                <span className="flex items-center gap-1">🎁 Gift Cards</span>
+                <span className="flex items-center gap-1">❓ Help Center</span>
+             </div>
+             <p className="text-xs">© 2026 ShoeHub.com - Made with ❤️ in India</p>
+          </div>
+        </footer>
+      )}
+    </div>
+  );
+}
