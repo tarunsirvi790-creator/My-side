@@ -8,49 +8,38 @@ import {
 import { initializeApp } from 'firebase/app';
 import { 
   getFirestore, collection, doc, setDoc, getDoc, addDoc, 
-  updateDoc, deleteDoc, onSnapshot, query, timestamp 
+  updateDoc, deleteDoc, onSnapshot, query, where 
 } from 'firebase/firestore';
 import { 
-  getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut 
+  getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged 
 } from 'firebase/auth';
 
-// --- CONFIGURATION & FIREBASE ---
+// --- FIREBASE SETUP ---
 const firebaseConfig = JSON.parse(__firebase_config);
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'shoe-store-pro';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'shoe-store-v1';
 
-// --- STYLING CONSTANTS ---
-const COLORS = {
-  primary: '#2874f0', // Flipkart Blue
-  secondary: '#ff9f00', // Flipkart Orange
-  success: '#388e3c',
-  text: '#212121',
-  lightText: '#878787',
-  bg: '#f1f3f6'
-};
-
-// --- APP COMPONENT ---
 export default function App() {
-  // Navigation & View State
-  const [view, setView] = useState('home'); // home, listing, detail, cart, checkout, order-success, admin-login, admin-dashboard
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [categoryFilter, setCategoryFilter] = useState('All');
-  
-  // Data State
+  // Navigation
+  const [view, setView] = useState('home'); 
   const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Data
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [settings, setSettings] = useState({ shipping: 40, whatsapp: '919000000000', cod: true });
   const [cart, setCart] = useState([]);
+  const [settings, setSettings] = useState({ whatsapp: '919000000000', shipping: 0 });
+  
+  // UI States
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [categoryFilter, setCategoryFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [adminPass, setAdminPass] = useState('');
 
-  // Admin Auth State
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminCreds, setAdminCreds] = useState({ email: '', password: '' });
-
-  // --- INITIALIZATION ---
+  // 1. Initial Auth (Rule 3)
   useEffect(() => {
     const initAuth = async () => {
       if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -60,33 +49,32 @@ export default function App() {
       }
     };
     initAuth();
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-    });
+    const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsubscribe();
   }, []);
 
-  // --- DATA FETCHING ---
+  // 2. Data Listeners (Rule 1)
   useEffect(() => {
     if (!user) return;
 
+    // Listen to Products
     const productsRef = collection(db, 'artifacts', appId, 'public', 'data', 'products');
-    const unsubProducts = onSnapshot(productsRef, (snapshot) => {
-      const p = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setProducts(p);
-    }, (err) => console.error("Firestore Error:", err));
+    const unsubProducts = onSnapshot(productsRef, (snap) => {
+      setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (err) => console.error("Products Load Error", err));
 
+    // Listen to Settings
     const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
-    const unsubSettings = onSnapshot(settingsRef, (doc) => {
-      if (doc.exists()) setSettings(doc.data());
+    const unsubSettings = onSnapshot(settingsRef, (d) => {
+      if (d.exists()) setSettings(d.data());
     });
 
+    // Listen to Orders (Only if admin logged in)
     let unsubOrders = () => {};
     if (isAdmin) {
       const ordersRef = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
-      unsubOrders = onSnapshot(ordersRef, (snapshot) => {
-        const o = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setOrders(o.sort((a, b) => b.timestamp - a.timestamp));
+      unsubOrders = onSnapshot(ordersRef, (snap) => {
+        setOrders(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => b.timestamp - a.timestamp));
       });
     }
 
@@ -97,553 +85,351 @@ export default function App() {
     };
   }, [user, isAdmin]);
 
-  // --- CART LOGIC ---
-  const addToCart = (product, size) => {
-    const item = { ...product, selectedSize: size, cartId: Date.now() };
-    setCart([...cart, item]);
-    setView('cart');
-  };
-
-  const removeFromCart = (cartId) => {
-    setCart(cart.filter(item => item.cartId !== cartId));
-  };
-
-  const cartTotal = cart.reduce((sum, item) => sum + Number(item.price), 0);
-
-  // --- UI HELPERS ---
+  // Search Logic
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
-      const matchesSearch = p.name?.toLowerCase().includes(searchQuery.toLowerCase());
+      const name = p.name ? p.name.toLowerCase() : '';
+      const matchesSearch = name.includes(searchQuery.toLowerCase());
       const matchesCategory = categoryFilter === 'All' || p.category === categoryFilter;
       return matchesSearch && matchesCategory;
     });
   }, [products, searchQuery, categoryFilter]);
 
-  // --- RENDERERS ---
+  // Cart Functions
+  const addToCart = (product, size) => {
+    setCart([...cart, { ...product, selectedSize: size, cartId: Date.now() }]);
+    setView('cart');
+  };
 
-  const Navbar = () => (
-    <nav className="bg-blue-600 text-white sticky top-0 z-50 shadow-md">
-      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+  const removeFromCart = (id) => setCart(cart.filter(i => i.cartId !== id));
+
+  const totalAmount = cart.reduce((acc, item) => acc + Number(item.price), 0);
+
+  // --- UI COMPONENTS ---
+
+  const Nav = () => (
+    <nav className="bg-[#2874f0] text-white p-3 sticky top-0 z-50 shadow-lg">
+      <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('home')}>
-          <div className="bg-white p-1 rounded">
-            <ShoppingBag size={24} className="text-blue-600" />
-          </div>
-          <span className="font-bold text-xl italic tracking-tighter">ShoeHub</span>
+          <ShoppingBag className="text-white" />
+          <span className="font-bold text-xl italic">ShoeHub</span>
         </div>
-
-        <div className="flex-1 max-w-xl relative hidden md:block">
+        <div className="flex-1 max-w-md relative hidden md:block">
           <input 
-            type="text" 
-            placeholder="Search for products, brands and more"
-            className="w-full py-2 px-4 rounded text-black outline-none"
+            className="w-full p-2 pl-4 rounded text-black outline-none text-sm" 
+            placeholder="Search products..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <Search className="absolute right-3 top-2 text-blue-600" size={20} />
+          <Search className="absolute right-3 top-2 text-gray-400" size={18} />
         </div>
-
         <div className="flex items-center gap-6">
-          <button 
-            className="font-semibold hover:bg-white/10 px-3 py-1 rounded transition"
-            onClick={() => setView('admin-login')}
-          >
-            Admin
-          </button>
+          <button className="font-bold text-sm" onClick={() => setView('admin-login')}>Admin</button>
           <div className="relative cursor-pointer" onClick={() => setView('cart')}>
-            <ShoppingCart size={24} />
-            {cart.length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-blue-600">
-                {cart.length}
-              </span>
-            )}
+            <ShoppingCart />
+            {cart.length > 0 && <span className="absolute -top-2 -right-2 bg-orange-500 text-[10px] px-1.5 py-0.5 rounded-full border border-blue-600 font-bold">{cart.length}</span>}
           </div>
-        </div>
-      </div>
-      <div className="md:hidden px-4 pb-3">
-        <div className="relative">
-          <input 
-            type="text" 
-            placeholder="Search for products..."
-            className="w-full py-2 px-4 rounded text-black outline-none"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <Search className="absolute right-3 top-2 text-gray-400" size={20} />
         </div>
       </div>
     </nav>
   );
 
-  const Home = () => (
-    <div className="bg-gray-100 min-h-screen">
-      <div className="max-w-7xl mx-auto md:p-4">
-        <div className="bg-blue-800 h-48 md:h-80 rounded-lg overflow-hidden relative flex items-center px-8 text-white">
-          <div className="z-10">
-            <h1 className="text-3xl md:text-5xl font-bold mb-2">Festive Sale!</h1>
-            <p className="text-lg md:text-2xl mb-4">Up to 60% Off on Top Brands</p>
-            <button className="bg-white text-blue-800 font-bold px-6 py-2 rounded shadow-lg" onClick={() => setView('listing')}>
-              Shop Now
-            </button>
-          </div>
-          <div className="absolute right-0 bottom-0 opacity-20 transform translate-x-10 translate-y-10">
-            <ShoppingBag size={300} />
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white py-4 shadow-sm mb-4">
-        <div className="max-w-6xl mx-auto flex overflow-x-auto gap-8 px-4 scrollbar-hide">
-          {['All', 'Men', 'Women', 'Kids', 'Sports', 'Casual'].map(cat => (
-            <div 
-              key={cat} 
-              className={`flex flex-col items-center cursor-pointer min-w-fit ${categoryFilter === cat ? 'text-blue-600 font-bold' : 'text-gray-600'}`}
-              onClick={() => { setCategoryFilter(cat); setView('listing'); }}
-            >
-              <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-1 ${categoryFilter === cat ? 'bg-blue-50' : 'bg-gray-100'}`}>
-                <Package size={24} />
-              </div>
-              <span className="text-xs uppercase tracking-wider">{cat}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="max-w-6xl mx-auto px-4 pb-12">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">Featured Deals</h2>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold shadow hover:bg-blue-700" onClick={() => setView('listing')}>VIEW ALL</button>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {products.slice(0, 4).map(p => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  const ProductCard = ({ product }) => (
-    <div 
-      className="bg-white border rounded-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow group h-full flex flex-col"
-      onClick={() => { setSelectedProduct(product); setView('detail'); }}
-    >
-      <div className="relative h-40 md:h-56 bg-gray-50 flex items-center justify-center overflow-hidden">
-        {product.images && product.images[0] ? (
-          <img src={product.images[0]} alt={product.name} className="w-full h-full object-contain group-hover:scale-110 transition-transform" />
-        ) : (
-          <ImageIcon size={48} className="text-gray-300" />
-        )}
-        <div className="absolute top-2 right-2 bg-white/80 p-1.5 rounded-full">
-          <Star size={16} className="text-yellow-500 fill-yellow-500" />
-        </div>
-      </div>
-      <div className="p-3 flex flex-col flex-1">
-        <h3 className="font-semibold text-sm line-clamp-1 mb-1">{product.name}</h3>
-        <p className="text-xs text-gray-500 mb-2 uppercase">{product.category}</p>
-        <div className="flex items-center gap-2 mt-auto">
-          <span className="font-bold text-lg">₹{product.price}</span>
-          {product.oldPrice && <span className="text-xs text-gray-400 line-through">₹{product.oldPrice}</span>}
-          <span className="text-green-600 text-xs font-bold">Free Delivery</span>
-        </div>
-      </div>
-    </div>
-  );
-
-  const ProductDetail = () => {
-    const [selectedSize, setSelectedSize] = useState(null);
-    const [mainImage, setMainImage] = useState(selectedProduct?.images?.[0] || '');
-
-    if (!selectedProduct) return null;
-
+  if (view === 'admin-login') {
     return (
-      <div className="max-w-6xl mx-auto bg-white min-h-screen p-4 md:pt-8">
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="space-y-4">
-            <div className="border rounded-lg p-4 flex items-center justify-center bg-white h-96">
-               {mainImage ? (
-                  <img src={mainImage} className="max-h-full object-contain" alt="main" />
-               ) : (
-                  <ImageIcon size={100} className="text-gray-100" />
-               )}
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-xl shadow-xl w-full max-w-sm">
+          <h2 className="text-2xl font-bold text-center mb-6">Admin Login</h2>
+          <input 
+            type="password" 
+            className="w-full p-3 border rounded mb-4 outline-none" 
+            placeholder="Enter Password (admin123)" 
+            value={adminPass}
+            onChange={(e) => setAdminPass(e.target.value)}
+          />
+          <button 
+            className="w-full bg-blue-600 text-white font-bold py-3 rounded"
+            onClick={() => {
+              if(adminPass === 'admin123') { setIsAdmin(true); setView('admin-dashboard'); }
+              else alert("Wrong password!");
+            }}
+          >LOGIN</button>
+          <button className="w-full text-gray-500 mt-4 text-sm" onClick={() => setView('home')}>Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === 'admin-dashboard' && isAdmin) {
+    return <AdminPanel products={products} orders={orders} setView={setView} settings={settings} setSettings={setSettings} />;
+  }
+
+  return (
+    <div className="bg-gray-100 min-h-screen pb-10">
+      <Nav />
+      <div className="max-w-6xl mx-auto p-4">
+        {view === 'home' && (
+          <>
+            <div className="bg-blue-700 h-40 md:h-64 rounded-xl mb-6 flex items-center px-8 text-white relative overflow-hidden">
+              <div className="z-10">
+                <h1 className="text-3xl md:text-5xl font-black mb-2">MEGA SALE!</h1>
+                <p className="text-lg opacity-90">Up to 70% Off on Sneakers</p>
+              </div>
+              <ShoppingBag size={150} className="absolute right-[-20px] bottom-[-20px] opacity-20" />
             </div>
-            <div className="flex gap-2 overflow-x-auto">
-              {selectedProduct.images?.map((img, idx) => (
-                <div 
-                  key={idx}
-                  className={`border-2 rounded p-1 cursor-pointer w-20 h-20 flex-shrink-0 ${mainImage === img ? 'border-blue-600' : 'border-transparent'}`}
-                  onClick={() => setMainImage(img)}
+
+            <div className="flex gap-4 overflow-x-auto pb-4 mb-6">
+              {['All', 'Men', 'Women', 'Kids', 'Sports'].map(cat => (
+                <button 
+                  key={cat} 
+                  onClick={() => setCategoryFilter(cat)}
+                  className={`px-6 py-2 rounded-full border font-bold text-sm whitespace-nowrap transition ${categoryFilter === cat ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}
                 >
-                  <img src={img} className="w-full h-full object-contain" alt={`thumb-${idx}`} />
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {filteredProducts.map(p => (
+                <div key={p.id} className="bg-white p-2 rounded-lg border hover:shadow-md cursor-pointer flex flex-col" onClick={() => { setSelectedProduct(p); setView('detail'); }}>
+                  <div className="h-40 bg-gray-50 rounded mb-2 flex items-center justify-center overflow-hidden">
+                    <img src={p.images?.[0] || 'https://via.placeholder.com/150'} className="max-h-full object-contain" alt={p.name} />
+                  </div>
+                  <h3 className="font-bold text-sm line-clamp-1">{p.name}</h3>
+                  <p className="text-green-600 font-bold text-lg mt-1">₹{p.price}</p>
                 </div>
               ))}
             </div>
-          </div>
+          </>
+        )}
 
-          <div className="space-y-6">
-            <div>
-              <nav className="text-xs text-gray-500 mb-2">Home {'>'} {selectedProduct.category} {'>'} {selectedProduct.name}</nav>
-              <h1 className="text-2xl font-bold">{selectedProduct.name}</h1>
-              <div className="flex items-center gap-4 mt-2">
-                <div className="bg-green-600 text-white text-xs font-bold px-2 py-0.5 rounded flex items-center gap-1">
-                  4.2 <Star size={12} fill="white" />
+        {view === 'detail' && selectedProduct && (
+          <div className="bg-white p-6 rounded-xl border grid md:grid-cols-2 gap-8">
+            <div className="flex items-center justify-center bg-gray-50 rounded-xl h-96">
+              <img src={selectedProduct.images?.[0]} className="max-h-full object-contain" alt="shoe" />
+            </div>
+            <div className="space-y-6">
+              <h1 className="text-3xl font-bold">{selectedProduct.name}</h1>
+              <p className="text-2xl font-black text-green-600">₹{selectedProduct.price}</p>
+              <div>
+                <p className="font-bold mb-2">Available Sizes</p>
+                <div className="flex gap-2">
+                  {selectedProduct.sizes?.map(s => <span key={s} className="border px-4 py-2 rounded font-bold cursor-pointer hover:bg-blue-50">{s}</span>)}
                 </div>
-                <span className="text-gray-500 text-sm font-medium">1,245 Ratings & 342 Reviews</span>
+              </div>
+              <p className="text-gray-600">{selectedProduct.description}</p>
+              <div className="flex gap-4 pt-4">
+                <button 
+                  className="flex-1 bg-orange-500 text-white font-bold py-4 rounded"
+                  onClick={() => addToCart(selectedProduct, selectedProduct.sizes?.[0])}
+                >ADD TO CART</button>
+                <button 
+                  className="flex-1 bg-blue-600 text-white font-bold py-4 rounded flex items-center justify-center gap-2"
+                  onClick={() => {
+                    const msg = `Hi, I want to buy ${selectedProduct.name} (₹${selectedProduct.price})`;
+                    window.open(`https://wa.me/${settings.whatsapp}?text=${encodeURIComponent(msg)}`);
+                  }}
+                ><MessageCircle size={20} /> WHATSAPP</button>
               </div>
             </div>
+          </div>
+        )}
 
-            <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-bold">₹{selectedProduct.price}</span>
-              <span className="text-gray-400 line-through text-lg">₹{Number(selectedProduct.price) + 500}</span>
-              <span className="text-green-600 font-bold">Extra ₹500 off</span>
-            </div>
-
-            <div>
-              <h3 className="font-bold mb-3">Select Size</h3>
-              <div className="flex flex-wrap gap-2">
-                {selectedProduct.sizes?.map(size => (
-                  <button 
-                    key={size}
-                    onClick={() => setSelectedSize(size)}
-                    className={`border px-6 py-2 rounded font-bold transition ${selectedSize === size ? 'border-blue-600 text-blue-600 bg-blue-50' : 'hover:border-blue-600'}`}
-                  >
-                    {size}
-                  </button>
-                ))}
+        {view === 'cart' && (
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-2xl font-bold mb-6">Shopping Cart ({cart.length})</h2>
+            {cart.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-xl border">
+                <ShoppingCart size={64} className="mx-auto text-gray-200 mb-4" />
+                <p className="text-gray-500">Cart is empty</p>
+                <button className="bg-blue-600 text-white px-6 py-2 rounded mt-4" onClick={() => setView('home')}>Shop Now</button>
               </div>
-            </div>
+            ) : (
+              <div className="grid md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 space-y-4">
+                  {cart.map(item => (
+                    <div key={item.cartId} className="bg-white p-4 rounded-lg border flex gap-4">
+                      <img src={item.images?.[0]} className="w-20 h-20 object-contain" alt="" />
+                      <div className="flex-1">
+                        <h4 className="font-bold">{item.name}</h4>
+                        <p className="text-sm text-gray-500">Size: {item.selectedSize}</p>
+                        <p className="font-bold text-blue-600">₹{item.price}</p>
+                      </div>
+                      <button onClick={() => removeFromCart(item.cartId)} className="text-red-500"><Trash2 size={18} /></button>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-white p-6 rounded-xl border h-fit space-y-4">
+                  <p className="text-lg font-bold">Total: ₹{totalAmount}</p>
+                  <button className="w-full bg-orange-500 text-white font-bold py-3 rounded" onClick={() => setView('checkout')}>CHECKOUT</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
-            <div className="flex gap-4 pt-4">
-              <button 
-                className="flex-1 bg-secondary text-white font-bold py-4 rounded shadow-lg flex items-center justify-center gap-2 hover:bg-orange-600 transition"
-                onClick={() => {
-                  if(!selectedSize) return alert("Please select a size");
-                  addToCart(selectedProduct, selectedSize);
-                }}
-              >
-                <ShoppingCart size={20} /> ADD TO CART
-              </button>
-              <button 
-                className="flex-1 bg-blue-600 text-white font-bold py-4 rounded shadow-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition"
-                onClick={() => {
-                   const text = `Hi, I want to buy: ${selectedProduct.name}\nSize: ${selectedSize || 'Not specified'}\nPrice: ₹${selectedProduct.price}`;
-                   window.open(`https://wa.me/${settings.whatsapp}?text=${encodeURIComponent(text)}`, '_blank');
-                }}
-              >
-                <MessageCircle size={20} /> ORDER ON WHATSAPP
-              </button>
-            </div>
+        {view === 'checkout' && <CheckoutForm cart={cart} total={totalAmount} settings={settings} setView={setView} setCart={setCart} />}
+        {view === 'order-success' && (
+          <div className="text-center py-20 bg-white rounded-xl border">
+            <CheckCircle size={80} className="text-green-500 mx-auto mb-4" />
+            <h1 className="text-3xl font-bold">Order Placed!</h1>
+            <p className="text-gray-600 mt-2">We will contact you on WhatsApp shortly.</p>
+            <button className="mt-8 bg-blue-600 text-white px-8 py-3 rounded font-bold" onClick={() => setView('home')}>Continue Shopping</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
-            <div className="border rounded-lg p-4 bg-gray-50">
-              <h3 className="font-bold mb-2">Product Details</h3>
-              <p className="text-sm text-gray-700 leading-relaxed">{selectedProduct.description}</p>
-            </div>
+// Sub-component: Checkout Form
+function CheckoutForm({ cart, total, settings, setView, setCart }) {
+  const [form, setForm] = useState({ name: '', phone: '', address: '', pin: '' });
+  
+  const submit = async (e) => {
+    e.preventDefault();
+    const orderData = {
+      customer: form,
+      items: cart,
+      total,
+      status: 'Pending',
+      timestamp: Date.now()
+    };
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), orderData);
+    
+    const itemsText = cart.map(i => `- ${i.name} (Size: ${i.selectedSize})`).join('\n');
+    const msg = `New Order!\nName: ${form.name}\nTotal: ₹${total}\nItems:\n${itemsText}\nAddress: ${form.address}`;
+    window.open(`https://wa.me/${settings.whatsapp}?text=${encodeURIComponent(msg)}`);
+    
+    setCart([]);
+    setView('order-success');
+  };
+
+  return (
+    <div className="max-w-md mx-auto bg-white p-6 rounded-xl border">
+      <h2 className="text-xl font-bold mb-6">Delivery Details</h2>
+      <form onSubmit={submit} className="space-y-4">
+        <input required className="w-full p-3 border rounded" placeholder="Full Name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+        <input required className="w-full p-3 border rounded" placeholder="Mobile Number" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} />
+        <textarea required className="w-full p-3 border rounded" placeholder="Full Address" value={form.address} onChange={e => setForm({...form, address: e.target.value})} />
+        <input required className="w-full p-3 border rounded" placeholder="Pincode" value={form.pin} onChange={e => setForm({...form, pin: e.target.value})} />
+        <button className="w-full bg-blue-600 text-white font-bold py-4 rounded">CONFIRM ORDER (COD)</button>
+      </form>
+    </div>
+  );
+}
+
+// Sub-component: Admin Panel
+function AdminPanel({ products, orders, setView, settings, setSettings }) {
+  const [tab, setTab] = useState('orders');
+  const [showModal, setShowModal] = useState(false);
+  const [editItem, setEditItem] = useState(null);
+
+  const ProductForm = () => {
+    const [formData, setFormData] = useState(editItem || { name: '', price: '', category: 'Men', description: '', sizes: ['7','8','9'], images: [''] });
+    
+    const save = async () => {
+      const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'products');
+      if(editItem) await updateDoc(doc(colRef, editItem.id), formData);
+      else await addDoc(colRef, formData);
+      setShowModal(false);
+      setEditItem(null);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
+        <div className="bg-white p-6 rounded-xl w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto">
+          <h3 className="text-xl font-bold">{editItem ? 'Edit' : 'Add'} Product</h3>
+          <input className="w-full p-2 border rounded" placeholder="Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+          <input type="number" className="w-full p-2 border rounded" placeholder="Price" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
+          <select className="w-full p-2 border rounded" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+            <option>Men</option><option>Women</option><option>Kids</option><option>Sports</option>
+          </select>
+          <input className="w-full p-2 border rounded" placeholder="Image URL" value={formData.images[0]} onChange={e => setFormData({...formData, images: [e.target.value]})} />
+          <textarea className="w-full p-2 border rounded h-20" placeholder="Description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+          <div className="flex gap-2">
+            <button className="flex-1 bg-blue-600 text-white py-2 rounded font-bold" onClick={save}>SAVE</button>
+            <button className="flex-1 bg-gray-200 py-2 rounded font-bold" onClick={() => setShowModal(false)}>CANCEL</button>
           </div>
         </div>
       </div>
     );
   };
 
-  const CartView = () => (
-    <div className="max-w-4xl mx-auto p-4 md:py-8">
-      <h1 className="text-2xl font-bold mb-6">Shopping Cart ({cart.length})</h1>
-      {cart.length === 0 ? (
-        <div className="bg-white p-12 text-center rounded-lg shadow">
-          <ShoppingBag size={80} className="mx-auto text-gray-200 mb-4" />
-          <h2 className="text-xl font-bold mb-2">Your cart is empty!</h2>
-          <p className="text-gray-500 mb-6">Explore our wide selection and find something you like</p>
-          <button className="bg-blue-600 text-white font-bold px-8 py-3 rounded shadow" onClick={() => setView('home')}>Shop Now</button>
-        </div>
-      ) : (
-        <div className="grid md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 space-y-4">
-            {cart.map(item => (
-              <div key={item.cartId} className="bg-white p-4 rounded shadow-sm border flex gap-4">
-                <div className="w-24 h-24 bg-gray-50 rounded flex-shrink-0">
-                  <img src={item.images?.[0]} className="w-full h-full object-contain" alt={item.name} />
+  return (
+    <div className="flex flex-col md:flex-row min-h-screen">
+      <div className="w-full md:w-64 bg-white border-r p-6 space-y-4">
+        <h2 className="font-bold text-xl mb-6">Admin Panel</h2>
+        {['orders', 'products', 'settings'].map(t => (
+          <button key={t} onClick={() => setTab(t)} className={`w-full text-left p-3 rounded capitalize font-bold ${tab === t ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}`}>{t}</button>
+        ))}
+        <button className="w-full text-left p-3 text-red-500 mt-10 font-bold" onClick={() => setView('home')}>Logout</button>
+      </div>
+
+      <div className="flex-1 p-6 md:p-10 bg-gray-50">
+        {tab === 'orders' && (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold mb-6">Recent Orders</h2>
+            {orders.map(o => (
+              <div key={o.id} className="bg-white p-4 rounded-xl border flex justify-between items-center">
+                <div>
+                  <p className="text-xs font-bold text-blue-600">ID: {o.id.slice(-6)}</p>
+                  <p className="font-bold">{o.customer?.name} ({o.customer?.phone})</p>
+                  <p className="text-sm text-gray-500">₹{o.total} • {o.items?.length} items</p>
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-bold">{item.name}</h3>
-                  <p className="text-sm text-gray-500">Size: {item.selectedSize} | {item.category}</p>
-                  <div className="flex items-baseline gap-2 mt-2">
-                    <span className="font-bold text-lg">₹{item.price}</span>
-                  </div>
+                <div className={`px-4 py-1 rounded-full text-xs font-bold ${o.status === 'Pending' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
+                  {o.status}
+                </div>
+                {o.status === 'Pending' && (
                   <button 
-                    className="mt-2 text-red-500 text-xs font-bold hover:underline flex items-center gap-1"
-                    onClick={() => removeFromCart(item.cartId)}
-                  >
-                    <Trash2 size={12} /> REMOVE
-                  </button>
-                </div>
+                    className="bg-green-600 text-white px-4 py-2 rounded text-xs"
+                    onClick={async () => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', o.id), { status: 'Delivered' })}
+                  >DELIVERED</button>
+                )}
               </div>
             ))}
           </div>
-          <div className="bg-white p-6 rounded shadow-sm border h-fit sticky top-24">
-            <h2 className="text-gray-500 font-bold text-sm uppercase border-b pb-3 mb-4">Price Details</h2>
-            <div className="space-y-4 text-sm">
-              <div className="flex justify-between">
-                <span>Price ({cart.length} items)</span>
-                <span>₹{cartTotal}</span>
-              </div>
-              <div className="flex justify-between font-bold text-lg border-t pt-4">
-                <span>Total Amount</span>
-                <span>₹{cartTotal}</span>
-              </div>
-              <button 
-                className="w-full bg-secondary text-white font-bold py-4 rounded shadow-lg mt-4 hover:bg-orange-600 transition"
-                onClick={() => setView('checkout')}
-              >
-                PLACE ORDER
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+        )}
 
-  const CheckoutView = () => {
-    const [form, setForm] = useState({ name: '', phone: '', address: '', pincode: '', payment: 'COD' });
-    const [loading, setLoading] = useState(false);
-
-    const handleSubmit = async (e) => {
-      e.preventDefault();
-      setLoading(true);
-      try {
-        const orderData = {
-          customer: form,
-          items: cart,
-          total: cartTotal,
-          status: 'Pending',
-          timestamp: Date.now()
-        };
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), orderData);
-        
-        const itemsList = cart.map(i => `- ${i.name} (Size: ${i.selectedSize})`).join('\n');
-        const text = `🔥 *NEW ORDER PLACED!*\n\n*Customer:* ${form.name}\n*Phone:* ${form.phone}\n*Total:* ₹${cartTotal}\n\n*Items:*\n${itemsList}\n\n*Address:* ${form.address}, ${form.pincode}\n*Payment:* ${form.payment}`;
-        
-        window.open(`https://wa.me/${settings.whatsapp}?text=${encodeURIComponent(text)}`, '_blank');
-        
-        setCart([]);
-        setView('order-success');
-      } catch (err) {
-        console.error(err);
-      }
-      setLoading(false);
-    };
-
-    return (
-      <div className="max-w-2xl mx-auto p-4 py-8">
-        <div className="bg-white p-6 rounded-lg shadow-md border">
-          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-            <Package className="text-blue-600" /> Delivery Details
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-600 mb-1">Full Name</label>
-              <input required type="text" className="w-full p-3 border rounded focus:ring-2 focus:ring-blue-600 outline-none" value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} />
+        {tab === 'products' && (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Manage Products</h2>
+              <button className="bg-blue-600 text-white px-6 py-2 rounded font-bold" onClick={() => { setEditItem(null); setShowModal(true); }}>+ ADD NEW</button>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-600 mb-1">Mobile Number</label>
-                <input required type="tel" className="w-full p-3 border rounded focus:ring-2 focus:ring-blue-600 outline-none" value={form.phone} onChange={(e) => setForm({...form, phone: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-600 mb-1">Pincode</label>
-                <input required type="text" className="w-full p-3 border rounded focus:ring-2 focus:ring-blue-600 outline-none" value={form.pincode} onChange={(e) => setForm({...form, pincode: e.target.value})} />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-600 mb-1">Full Address</label>
-              <textarea required className="w-full p-3 border rounded h-24 focus:ring-2 focus:ring-blue-600 outline-none" value={form.address} onChange={(e) => setForm({...form, address: e.target.value})}></textarea>
-            </div>
-            <div className="pt-4">
-              <h3 className="font-bold mb-3">Payment Method</h3>
-              <label className="flex items-center gap-3 p-3 border rounded cursor-pointer hover:bg-gray-50">
-                <input type="radio" name="pay" checked readOnly />
-                <span className="font-medium">Cash on Delivery (COD)</span>
-              </label>
-            </div>
-            <button disabled={loading} className="w-full bg-blue-600 text-white font-bold py-4 rounded shadow-lg mt-6 hover:bg-blue-700 transition flex items-center justify-center gap-2 disabled:opacity-50">
-              {loading ? 'Processing...' : 'CONFIRM ORDER'}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  };
-
-  const AdminLogin = () => {
-    const handleLogin = (e) => {
-      e.preventDefault();
-      if (adminCreds.password === 'admin123') {
-        setIsAdmin(true);
-        setView('admin-dashboard');
-      } else {
-        alert("Invalid Admin Password");
-      }
-    };
-    return (
-      <div className="flex items-center justify-center min-h-[80vh] bg-gray-100 px-4">
-        <div className="bg-white p-8 rounded-lg shadow-xl border max-w-sm w-full">
-          <div className="text-center mb-6">
-            <LayoutDashboard size={48} className="mx-auto text-blue-600 mb-2" />
-            <h1 className="text-2xl font-bold">Admin Portal</h1>
-          </div>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <input type="password" className="w-full p-3 border rounded outline-none" placeholder="Admin Password" value={adminCreds.password} onChange={(e) => setAdminCreds({...adminCreds, password: e.target.value})} />
-            <button className="w-full bg-blue-600 text-white font-bold py-3 rounded">SIGN IN</button>
-          </form>
-        </div>
-      </div>
-    );
-  };
-
-  const AdminDashboard = () => {
-    const [activeTab, setActiveTab] = useState('overview');
-    const [showProductModal, setShowProductModal] = useState(false);
-    const [editingProduct, setEditingProduct] = useState(null);
-
-    const stats = {
-      total: orders.length,
-      pending: orders.filter(o => o.status === 'Pending').length,
-      delivered: orders.filter(o => o.status === 'Delivered').length,
-      revenue: orders.filter(o => o.status === 'Delivered').reduce((s, o) => s + Number(o.total), 0)
-    };
-
-    const ProductForm = () => {
-      const [formData, setFormData] = useState(editingProduct || {
-        name: '', price: '', category: 'Men', description: '', sizes: ['7', '8', '9', '10'], images: ['']
-      });
-      const save = async () => {
-        const ref = collection(db, 'artifacts', appId, 'public', 'data', 'products');
-        if (editingProduct) await updateDoc(doc(ref, editingProduct.id), formData);
-        else await addDoc(ref, { ...formData, createdAt: Date.now() });
-        setShowProductModal(false);
-        setEditingProduct(null);
-      };
-      return (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">{editingProduct ? 'Edit Product' : 'Add Product'}</h2>
-              <button onClick={() => { setShowProductModal(false); setEditingProduct(null); }}><X /></button>
-            </div>
-            <div className="space-y-4">
-              <input className="w-full p-2 border rounded" placeholder="Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-              <div className="grid grid-cols-2 gap-4">
-                <input type="number" className="w-full p-2 border rounded" placeholder="Price" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
-                <select className="w-full p-2 border rounded" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-                  <option>Men</option><option>Women</option><option>Kids</option><option>Sports</option><option>Casual</option>
-                </select>
-              </div>
-              <textarea className="w-full p-2 border rounded h-24" placeholder="Description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
-              <input className="w-full p-2 border rounded" placeholder="Main Image URL" value={formData.images[0]} onChange={e => setFormData({...formData, images: [e.target.value]})} />
-              <button className="w-full bg-blue-600 text-white font-bold py-3 rounded" onClick={save}>SAVE</button>
-            </div>
-          </div>
-        </div>
-      );
-    };
-
-    return (
-      <div className="flex flex-col md:flex-row min-h-screen bg-gray-50">
-        <div className="w-full md:w-64 bg-white border-r p-6 space-y-4">
-          <h2 className="font-bold text-xl mb-6">Admin Panel</h2>
-          {['overview', 'products', 'orders', 'settings'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full text-left p-3 rounded capitalize ${activeTab === tab ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}`}>{tab}</button>
-          ))}
-          <button className="w-full text-left p-3 text-red-500 mt-10" onClick={() => { setIsAdmin(false); setView('home'); }}>Logout</button>
-        </div>
-        <div className="flex-1 p-8">
-          {activeTab === 'overview' && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white p-6 rounded shadow border"><p className="text-xs font-bold text-gray-400">TOTAL ORDERS</p><p className="text-2xl font-bold">{stats.total}</p></div>
-              <div className="bg-white p-6 rounded shadow border"><p className="text-xs font-bold text-gray-400">PENDING</p><p className="text-2xl font-bold text-orange-500">{stats.pending}</p></div>
-              <div className="bg-white p-6 rounded shadow border"><p className="text-xs font-bold text-gray-400">DELIVERED</p><p className="text-2xl font-bold text-green-500">{stats.delivered}</p></div>
-              <div className="bg-white p-6 rounded shadow border"><p className="text-xs font-bold text-gray-400">REVENUE</p><p className="text-2xl font-bold">₹{stats.revenue}</p></div>
-            </div>
-          )}
-          {activeTab === 'products' && (
-            <div>
-              <button className="bg-blue-600 text-white px-4 py-2 rounded mb-4" onClick={() => setShowProductModal(true)}>+ ADD PRODUCT</button>
-              <div className="bg-white border rounded overflow-hidden">
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50 border-b text-xs font-bold">
-                    <tr><th className="p-4">PRODUCT</th><th className="p-4">CATEGORY</th><th className="p-4">PRICE</th><th className="p-4">ACTION</th></tr>
-                  </thead>
-                  <tbody>
-                    {products.map(p => (
-                      <tr key={p.id} className="border-b">
-                        <td className="p-4 flex items-center gap-2"><img src={p.images?.[0]} className="w-8 h-8 object-contain" /> {p.name}</td>
-                        <td className="p-4">{p.category}</td>
-                        <td className="p-4">₹{p.price}</td>
-                        <td className="p-4 flex gap-2">
-                          <button onClick={() => { setEditingProduct(p); setShowProductModal(true); }}><Edit2 size={16} /></button>
-                          <button onClick={async () => { if(confirm("Delete?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', p.id)) }} className="text-red-500"><Trash2 size={16} /></button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {showProductModal && <ProductForm />}
-            </div>
-          )}
-          {activeTab === 'orders' && (
-            <div className="space-y-4">
-              {orders.map(o => (
-                <div key={o.id} className="bg-white p-4 rounded border shadow-sm flex justify-between items-center">
-                  <div>
-                    <p className="text-xs font-bold text-blue-600">ORDER #{o.id.slice(-6)}</p>
-                    <p className="font-bold">{o.customer?.name} ({o.customer?.phone})</p>
-                    <p className="text-xs text-gray-500">{o.items?.length} items • ₹{o.total}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {products.map(p => (
+                <div key={p.id} className="bg-white p-4 rounded-xl border flex gap-4 items-center">
+                  <img src={p.images?.[0]} className="w-16 h-16 object-contain bg-gray-50 rounded" alt="" />
+                  <div className="flex-1">
+                    <h4 className="font-bold text-sm line-clamp-1">{p.name}</h4>
+                    <p className="font-bold text-green-600">₹{p.price}</p>
                   </div>
-                  <div className="flex gap-2">
-                    {o.status === 'Pending' && <button className="bg-green-600 text-white text-xs px-3 py-1 rounded" onClick={async () => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', o.id), { status: 'Delivered' })}>Mark Delivered</button>}
-                    <button className="border px-3 py-1 rounded text-xs" onClick={() => window.open(`https://wa.me/${o.customer?.phone}?text=Hello ${o.customer?.name}, your order is ${o.status}`)}>Contact</button>
+                  <div className="flex flex-col gap-2">
+                    <button onClick={() => { setEditItem(p); setShowModal(true); }}><Edit2 size={16} className="text-blue-600" /></button>
+                    <button onClick={async () => { if(confirm("Delete?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', p.id)) }}><Trash2 size={16} className="text-red-500" /></button>
                   </div>
                 </div>
               ))}
             </div>
-          )}
-          {activeTab === 'settings' && (
-            <div className="max-w-sm space-y-4">
-              <input className="w-full p-2 border rounded" placeholder="Owner WhatsApp" value={settings.whatsapp} onChange={e => setSettings({...settings, whatsapp: e.target.value})} />
-              <input type="number" className="w-full p-2 border rounded" placeholder="Shipping Fee" value={settings.shipping} onChange={e => setSettings({...settings, shipping: e.target.value})} />
-              <button className="w-full bg-blue-600 text-white py-2 rounded" onClick={async () => { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), settings); alert("Saved!"); }}>Save Settings</button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const OrderSuccess = () => (
-    <div className="max-w-md mx-auto py-16 text-center space-y-4">
-      <CheckCircle size={60} className="text-green-600 mx-auto" />
-      <h1 className="text-2xl font-bold">Order Confirmed!</h1>
-      <p>Your order has been received. We will contact you on WhatsApp.</p>
-      <button className="bg-blue-600 text-white px-8 py-3 rounded" onClick={() => setView('home')}>Back to Home</button>
-    </div>
-  );
-
-  return (
-    <div className="bg-gray-100 min-h-screen">
-      {!isAdmin && <Navbar />}
-      <main className={!isAdmin ? 'pt-4' : ''}>
-        {view === 'home' && <Home />}
-        {view === 'listing' && (
-          <div className="max-w-6xl mx-auto px-4 py-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {filteredProducts.map(p => <ProductCard key={p.id} product={p} />)}
+            {showModal && <ProductForm />}
           </div>
         )}
-        {view === 'detail' && <ProductDetail />}
-        {view === 'cart' && <CartView />}
-        {view === 'checkout' && <CheckoutView />}
-        {view === 'order-success' && <OrderSuccess />}
-        {view === 'admin-login' && <AdminLogin />}
-        {view === 'admin-dashboard' && isAdmin && <AdminDashboard />}
-      </main>
+
+        {tab === 'settings' && (
+          <div className="max-w-md bg-white p-6 rounded-xl border space-y-4">
+            <h2 className="text-2xl font-bold mb-4">Store Settings</h2>
+            <div>
+              <label className="text-sm font-bold text-gray-500">WhatsApp Number (with country code)</label>
+              <input className="w-full p-2 border rounded mt-1" value={settings.whatsapp} onChange={e => setSettings({...settings, whatsapp: e.target.value})} />
+            </div>
+            <button 
+              className="w-full bg-blue-600 text-white py-2 rounded font-bold"
+              onClick={async () => { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), settings); alert("Saved!"); }}
+            >SAVE SETTINGS</button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
