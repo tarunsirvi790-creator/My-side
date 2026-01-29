@@ -22,12 +22,12 @@ const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'shoe-store-v1';
 
 export default function App() {
-  // Navigation
+  // Navigation & Auth State
   const [view, setView] = useState('home'); 
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Data
+  // Data State
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [cart, setCart] = useState([]);
@@ -39,7 +39,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [adminPass, setAdminPass] = useState('');
 
-  // 1. Initial Auth (Rule 3)
+  // 1. Initial Auth (Standard Implementation)
   useEffect(() => {
     const initAuth = async () => {
       if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -53,11 +53,11 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 2. Data Listeners (Rule 1)
+  // 2. Data Listeners
   useEffect(() => {
     if (!user) return;
 
-    // Listen to Products
+    // Listen to Products (Public Collection)
     const productsRef = collection(db, 'artifacts', appId, 'public', 'data', 'products');
     const unsubProducts = onSnapshot(productsRef, (snap) => {
       setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -69,7 +69,7 @@ export default function App() {
       if (d.exists()) setSettings(d.data());
     });
 
-    // Listen to Orders (Only if admin logged in)
+    // Listen to Orders (Admin Only)
     let unsubOrders = () => {};
     if (isAdmin) {
       const ordersRef = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
@@ -85,7 +85,7 @@ export default function App() {
     };
   }, [user, isAdmin]);
 
-  // Search Logic
+  // Search & Filter Logic
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
       const name = p.name ? p.name.toLowerCase() : '';
@@ -95,8 +95,9 @@ export default function App() {
     });
   }, [products, searchQuery, categoryFilter]);
 
-  // Cart Functions
+  // Cart Handlers
   const addToCart = (product, size) => {
+    if(!size) return alert("Please select a size");
     setCart([...cart, { ...product, selectedSize: size, cartId: Date.now() }]);
     setView('cart');
   };
@@ -105,7 +106,7 @@ export default function App() {
 
   const totalAmount = cart.reduce((acc, item) => acc + Number(item.price), 0);
 
-  // --- UI COMPONENTS ---
+  // --- SUB-COMPONENTS ---
 
   const Nav = () => (
     <nav className="bg-[#2874f0] text-white p-3 sticky top-0 z-50 shadow-lg">
@@ -127,12 +128,18 @@ export default function App() {
           <button className="font-bold text-sm" onClick={() => setView('admin-login')}>Admin</button>
           <div className="relative cursor-pointer" onClick={() => setView('cart')}>
             <ShoppingCart />
-            {cart.length > 0 && <span className="absolute -top-2 -right-2 bg-orange-500 text-[10px] px-1.5 py-0.5 rounded-full border border-blue-600 font-bold">{cart.length}</span>}
+            {cart.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-orange-500 text-[10px] px-1.5 py-0.5 rounded-full border border-blue-600 font-bold">
+                {cart.length}
+              </span>
+            )}
           </div>
         </div>
       </div>
     </nav>
   );
+
+  // --- VIEWS ---
 
   if (view === 'admin-login') {
     return (
@@ -153,14 +160,14 @@ export default function App() {
               else alert("Wrong password!");
             }}
           >LOGIN</button>
-          <button className="w-full text-gray-500 mt-4 text-sm" onClick={() => setView('home')}>Cancel</button>
+          <button className="w-full text-gray-500 mt-4 text-sm underline" onClick={() => setView('home')}>Back to Store</button>
         </div>
       </div>
     );
   }
 
   if (view === 'admin-dashboard' && isAdmin) {
-    return <AdminPanel products={products} orders={orders} setView={setView} settings={settings} setSettings={setSettings} />;
+    return <AdminPanel products={products} orders={orders} setView={setView} settings={settings} setSettings={setSettings} setIsAdmin={setIsAdmin} />;
   }
 
   return (
@@ -172,12 +179,12 @@ export default function App() {
             <div className="bg-blue-700 h-40 md:h-64 rounded-xl mb-6 flex items-center px-8 text-white relative overflow-hidden">
               <div className="z-10">
                 <h1 className="text-3xl md:text-5xl font-black mb-2">MEGA SALE!</h1>
-                <p className="text-lg opacity-90">Up to 70% Off on Sneakers</p>
+                <p className="text-lg opacity-90">Up to 70% Off on Top Brands</p>
               </div>
               <ShoppingBag size={150} className="absolute right-[-20px] bottom-[-20px] opacity-20" />
             </div>
 
-            <div className="flex gap-4 overflow-x-auto pb-4 mb-6">
+            <div className="flex gap-4 overflow-x-auto pb-4 mb-6 scrollbar-hide">
               {['All', 'Men', 'Women', 'Kids', 'Sports'].map(cat => (
                 <button 
                   key={cat} 
@@ -189,47 +196,62 @@ export default function App() {
               ))}
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {filteredProducts.map(p => (
-                <div key={p.id} className="bg-white p-2 rounded-lg border hover:shadow-md cursor-pointer flex flex-col" onClick={() => { setSelectedProduct(p); setView('detail'); }}>
+                <div key={p.id} className="bg-white p-2 rounded-lg border hover:shadow-md cursor-pointer flex flex-col transition" onClick={() => { setSelectedProduct(p); setView('detail'); }}>
                   <div className="h-40 bg-gray-50 rounded mb-2 flex items-center justify-center overflow-hidden">
-                    <img src={p.images?.[0] || 'https://via.placeholder.com/150'} className="max-h-full object-contain" alt={p.name} />
+                    <img src={p.images?.[0] || 'https://via.placeholder.com/150'} className="max-h-full object-contain hover:scale-110 transition-transform" alt={p.name} />
                   </div>
-                  <h3 className="font-bold text-sm line-clamp-1">{p.name}</h3>
-                  <p className="text-green-600 font-bold text-lg mt-1">₹{p.price}</p>
+                  <h3 className="font-bold text-sm line-clamp-1 px-1">{p.name}</h3>
+                  <p className="text-green-600 font-bold text-lg mt-1 px-1">₹{p.price}</p>
+                  <p className="text-[10px] text-gray-400 px-1 uppercase">{p.category}</p>
                 </div>
               ))}
             </div>
+            {filteredProducts.length === 0 && (
+              <div className="text-center py-20 text-gray-400">No products found in this category.</div>
+            )}
           </>
         )}
 
         {view === 'detail' && selectedProduct && (
           <div className="bg-white p-6 rounded-xl border grid md:grid-cols-2 gap-8">
-            <div className="flex items-center justify-center bg-gray-50 rounded-xl h-96">
-              <img src={selectedProduct.images?.[0]} className="max-h-full object-contain" alt="shoe" />
+            <div className="flex items-center justify-center bg-gray-50 rounded-xl h-96 p-4">
+              <img src={selectedProduct.images?.[0] || 'https://via.placeholder.com/150'} className="max-h-full object-contain" alt="shoe" />
             </div>
             <div className="space-y-6">
+              <button onClick={() => setView('home')} className="text-blue-600 flex items-center gap-1 text-sm font-bold"><ArrowLeft size={16}/> Back</button>
               <h1 className="text-3xl font-bold">{selectedProduct.name}</h1>
-              <p className="text-2xl font-black text-green-600">₹{selectedProduct.price}</p>
+              <div className="flex items-center gap-4">
+                <p className="text-3xl font-black text-green-600">₹{selectedProduct.price}</p>
+                <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">FREE DELIVERY</span>
+              </div>
               <div>
-                <p className="font-bold mb-2">Available Sizes</p>
-                <div className="flex gap-2">
-                  {selectedProduct.sizes?.map(s => <span key={s} className="border px-4 py-2 rounded font-bold cursor-pointer hover:bg-blue-50">{s}</span>)}
+                <p className="font-bold mb-3 text-gray-600">Select Size</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedProduct.sizes?.map(s => (
+                    <button key={s} className="border-2 border-gray-100 px-5 py-2 rounded-lg font-bold hover:border-blue-600 hover:text-blue-600 transition">
+                      {s}
+                    </button>
+                  ))}
                 </div>
               </div>
-              <p className="text-gray-600">{selectedProduct.description}</p>
+              <div className="border-t pt-4">
+                <p className="font-bold text-gray-600 mb-2">Description</p>
+                <p className="text-gray-500 text-sm leading-relaxed">{selectedProduct.description}</p>
+              </div>
               <div className="flex gap-4 pt-4">
                 <button 
-                  className="flex-1 bg-orange-500 text-white font-bold py-4 rounded"
-                  onClick={() => addToCart(selectedProduct, selectedProduct.sizes?.[0])}
+                  className="flex-1 bg-orange-500 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-orange-600 transition"
+                  onClick={() => addToCart(selectedProduct, selectedProduct.sizes?.[0] || 'N/A')}
                 >ADD TO CART</button>
                 <button 
-                  className="flex-1 bg-blue-600 text-white font-bold py-4 rounded flex items-center justify-center gap-2"
+                  className="flex-1 bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition"
                   onClick={() => {
-                    const msg = `Hi, I want to buy ${selectedProduct.name} (₹${selectedProduct.price})`;
+                    const msg = `Hi, I want to order: ${selectedProduct.name}\nPrice: ₹${selectedProduct.price}`;
                     window.open(`https://wa.me/${settings.whatsapp}?text=${encodeURIComponent(msg)}`);
                   }}
-                ><MessageCircle size={20} /> WHATSAPP</button>
+                ><MessageCircle size={20} /> WHATSAPP ORDER</button>
               </div>
             </div>
           </div>
@@ -241,27 +263,31 @@ export default function App() {
             {cart.length === 0 ? (
               <div className="text-center py-20 bg-white rounded-xl border">
                 <ShoppingCart size={64} className="mx-auto text-gray-200 mb-4" />
-                <p className="text-gray-500">Cart is empty</p>
-                <button className="bg-blue-600 text-white px-6 py-2 rounded mt-4" onClick={() => setView('home')}>Shop Now</button>
+                <p className="text-gray-500">Your cart is empty</p>
+                <button className="bg-blue-600 text-white px-8 py-3 rounded-lg mt-6 font-bold" onClick={() => setView('home')}>Shop Now</button>
               </div>
             ) : (
               <div className="grid md:grid-cols-3 gap-6">
                 <div className="md:col-span-2 space-y-4">
                   {cart.map(item => (
-                    <div key={item.cartId} className="bg-white p-4 rounded-lg border flex gap-4">
-                      <img src={item.images?.[0]} className="w-20 h-20 object-contain" alt="" />
+                    <div key={item.cartId} className="bg-white p-4 rounded-xl border flex gap-4 items-center">
+                      <img src={item.images?.[0] || 'https://via.placeholder.com/150'} className="w-20 h-20 object-contain bg-gray-50 rounded" alt="" />
                       <div className="flex-1">
                         <h4 className="font-bold">{item.name}</h4>
-                        <p className="text-sm text-gray-500">Size: {item.selectedSize}</p>
-                        <p className="font-bold text-blue-600">₹{item.price}</p>
+                        <p className="text-xs text-gray-400">Size: {item.selectedSize}</p>
+                        <p className="font-bold text-blue-600 mt-1">₹{item.price}</p>
                       </div>
-                      <button onClick={() => removeFromCart(item.cartId)} className="text-red-500"><Trash2 size={18} /></button>
+                      <button onClick={() => removeFromCart(item.cartId)} className="p-2 text-red-500 hover:bg-red-50 rounded-full transition"><Trash2 size={20} /></button>
                     </div>
                   ))}
                 </div>
-                <div className="bg-white p-6 rounded-xl border h-fit space-y-4">
-                  <p className="text-lg font-bold">Total: ₹{totalAmount}</p>
-                  <button className="w-full bg-orange-500 text-white font-bold py-3 rounded" onClick={() => setView('checkout')}>CHECKOUT</button>
+                <div className="bg-white p-6 rounded-xl border h-fit space-y-4 sticky top-24 shadow-sm">
+                  <h3 className="font-bold border-b pb-2 uppercase text-xs text-gray-400">Price Details</h3>
+                  <div className="flex justify-between font-bold text-xl">
+                    <span>Total:</span>
+                    <span className="text-green-600">₹{totalAmount}</span>
+                  </div>
+                  <button className="w-full bg-orange-500 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-orange-600 transition mt-4" onClick={() => setView('checkout')}>PROCEED TO CHECKOUT</button>
                 </div>
               </div>
             )}
@@ -269,12 +295,15 @@ export default function App() {
         )}
 
         {view === 'checkout' && <CheckoutForm cart={cart} total={totalAmount} settings={settings} setView={setView} setCart={setCart} />}
+        
         {view === 'order-success' && (
-          <div className="text-center py-20 bg-white rounded-xl border">
-            <CheckCircle size={80} className="text-green-500 mx-auto mb-4" />
-            <h1 className="text-3xl font-bold">Order Placed!</h1>
-            <p className="text-gray-600 mt-2">We will contact you on WhatsApp shortly.</p>
-            <button className="mt-8 bg-blue-600 text-white px-8 py-3 rounded font-bold" onClick={() => setView('home')}>Continue Shopping</button>
+          <div className="text-center py-20 bg-white rounded-2xl border shadow-xl max-w-lg mx-auto">
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle size={50} className="text-green-500" />
+            </div>
+            <h1 className="text-3xl font-bold mb-2">Order Confirmed!</h1>
+            <p className="text-gray-500 px-10">Your order has been received. Our team will contact you on WhatsApp for final confirmation and delivery.</p>
+            <button className="mt-10 bg-blue-600 text-white px-10 py-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition" onClick={() => setView('home')}>Continue Shopping</button>
           </div>
         )}
       </div>
@@ -285,71 +314,89 @@ export default function App() {
 // Sub-component: Checkout Form
 function CheckoutForm({ cart, total, settings, setView, setCart }) {
   const [form, setForm] = useState({ name: '', phone: '', address: '', pin: '' });
+  const [loading, setLoading] = useState(false);
   
   const submit = async (e) => {
     e.preventDefault();
-    const orderData = {
-      customer: form,
-      items: cart,
-      total,
-      status: 'Pending',
-      timestamp: Date.now()
-    };
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), orderData);
-    
-    const itemsText = cart.map(i => `- ${i.name} (Size: ${i.selectedSize})`).join('\n');
-    const msg = `New Order!\nName: ${form.name}\nTotal: ₹${total}\nItems:\n${itemsText}\nAddress: ${form.address}`;
-    window.open(`https://wa.me/${settings.whatsapp}?text=${encodeURIComponent(msg)}`);
-    
-    setCart([]);
-    setView('order-success');
+    setLoading(true);
+    try {
+      const orderData = {
+        customer: form,
+        items: cart,
+        total,
+        status: 'Pending',
+        timestamp: Date.now()
+      };
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), orderData);
+      
+      const itemsText = cart.map(i => `- ${i.name} (Size: ${i.selectedSize})`).join('\n');
+      const msg = `🔥 *New Order Received!*\n\n*Name:* ${form.name}\n*Phone:* ${form.phone}\n*Total:* ₹${total}\n\n*Items:*\n${itemsText}\n\n*Address:* ${form.address}, ${form.pin}`;
+      window.open(`https://wa.me/${settings.whatsapp}?text=${encodeURIComponent(msg)}`);
+      
+      setCart([]);
+      setView('order-success');
+    } catch (err) {
+      alert("Error placing order. Please try again.");
+    }
+    setLoading(false);
   };
 
   return (
-    <div className="max-w-md mx-auto bg-white p-6 rounded-xl border">
-      <h2 className="text-xl font-bold mb-6">Delivery Details</h2>
+    <div className="max-w-md mx-auto bg-white p-8 rounded-2xl border shadow-lg">
+      <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><Truck className="text-blue-600"/> Delivery Details</h2>
       <form onSubmit={submit} className="space-y-4">
-        <input required className="w-full p-3 border rounded" placeholder="Full Name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
-        <input required className="w-full p-3 border rounded" placeholder="Mobile Number" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} />
-        <textarea required className="w-full p-3 border rounded" placeholder="Full Address" value={form.address} onChange={e => setForm({...form, address: e.target.value})} />
-        <input required className="w-full p-3 border rounded" placeholder="Pincode" value={form.pin} onChange={e => setForm({...form, pin: e.target.value})} />
-        <button className="w-full bg-blue-600 text-white font-bold py-4 rounded">CONFIRM ORDER (COD)</button>
+        <input required className="w-full p-4 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Full Name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+        <input required type="tel" className="w-full p-4 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Mobile Number" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} />
+        <textarea required className="w-full p-4 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 h-24" placeholder="Full Address with Landmark" value={form.address} onChange={e => setForm({...form, address: e.target.value})} />
+        <input required className="w-full p-4 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Pincode" value={form.pin} onChange={e => setForm({...form, pin: e.target.value})} />
+        <div className="bg-gray-50 p-4 rounded-xl flex justify-between items-center">
+          <span className="font-bold text-gray-500">Payment:</span>
+          <span className="font-black text-blue-600">CASH ON DELIVERY</span>
+        </div>
+        <button disabled={loading} className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-700 transition disabled:opacity-50">
+          {loading ? 'Processing...' : 'PLACE ORDER NOW'}
+        </button>
       </form>
     </div>
   );
 }
 
 // Sub-component: Admin Panel
-function AdminPanel({ products, orders, setView, settings, setSettings }) {
+function AdminPanel({ products, orders, setView, settings, setSettings, setIsAdmin }) {
   const [tab, setTab] = useState('orders');
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
 
   const ProductForm = () => {
-    const [formData, setFormData] = useState(editItem || { name: '', price: '', category: 'Men', description: '', sizes: ['7','8','9'], images: [''] });
+    const [formData, setFormData] = useState(editItem || { name: '', price: '', category: 'Men', description: '', sizes: ['7','8','9','10'], images: [''] });
     
     const save = async () => {
       const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'products');
       if(editItem) await updateDoc(doc(colRef, editItem.id), formData);
-      else await addDoc(colRef, formData);
+      else await addDoc(colRef, { ...formData, timestamp: Date.now() });
       setShowModal(false);
       setEditItem(null);
     };
 
     return (
-      <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
-        <div className="bg-white p-6 rounded-xl w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto">
-          <h3 className="text-xl font-bold">{editItem ? 'Edit' : 'Add'} Product</h3>
-          <input className="w-full p-2 border rounded" placeholder="Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-          <input type="number" className="w-full p-2 border rounded" placeholder="Price" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
-          <select className="w-full p-2 border rounded" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-            <option>Men</option><option>Women</option><option>Kids</option><option>Sports</option>
-          </select>
-          <input className="w-full p-2 border rounded" placeholder="Image URL" value={formData.images[0]} onChange={e => setFormData({...formData, images: [e.target.value]})} />
-          <textarea className="w-full p-2 border rounded h-20" placeholder="Description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
-          <div className="flex gap-2">
-            <button className="flex-1 bg-blue-600 text-white py-2 rounded font-bold" onClick={save}>SAVE</button>
-            <button className="flex-1 bg-gray-200 py-2 rounded font-bold" onClick={() => setShowModal(false)}>CANCEL</button>
+      <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="bg-white p-8 rounded-2xl w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-2xl font-bold">{editItem ? 'Edit' : 'Add'} Product</h3>
+            <button onClick={() => setShowModal(false)}><X/></button>
+          </div>
+          <input className="w-full p-3 border rounded-xl outline-none" placeholder="Shoe Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+          <div className="grid grid-cols-2 gap-4">
+            <input type="number" className="w-full p-3 border rounded-xl outline-none" placeholder="Price (₹)" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
+            <select className="w-full p-3 border rounded-xl outline-none" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+              <option>Men</option><option>Women</option><option>Kids</option><option>Sports</option><option>Casual</option>
+            </select>
+          </div>
+          <input className="w-full p-3 border rounded-xl outline-none" placeholder="Image URL (Direct link)" value={formData.images[0]} onChange={e => setFormData({...formData, images: [e.target.value]})} />
+          <textarea className="w-full p-3 border rounded-xl outline-none h-24" placeholder="Product Description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+          <div className="flex gap-3 pt-4">
+            <button className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg" onClick={save}>SAVE PRODUCT</button>
+            <button className="flex-1 bg-gray-100 py-3 rounded-xl font-bold" onClick={() => setShowModal(false)}>CANCEL</button>
           </div>
         </div>
       </div>
@@ -358,34 +405,57 @@ function AdminPanel({ products, orders, setView, settings, setSettings }) {
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen">
-      <div className="w-full md:w-64 bg-white border-r p-6 space-y-4">
-        <h2 className="font-bold text-xl mb-6">Admin Panel</h2>
-        {['orders', 'products', 'settings'].map(t => (
-          <button key={t} onClick={() => setTab(t)} className={`w-full text-left p-3 rounded capitalize font-bold ${tab === t ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}`}>{t}</button>
-        ))}
-        <button className="w-full text-left p-3 text-red-500 mt-10 font-bold" onClick={() => setView('home')}>Logout</button>
+      {/* Sidebar */}
+      <div className="w-full md:w-64 bg-white border-r p-6 space-y-4 flex flex-col">
+        <div className="flex items-center gap-2 mb-8">
+          <LayoutDashboard className="text-blue-600" />
+          <h2 className="font-bold text-xl">Admin Panel</h2>
+        </div>
+        <nav className="flex-1 space-y-2">
+          {['orders', 'products', 'settings'].map(t => (
+            <button key={t} onClick={() => setTab(t)} className={`w-full text-left p-4 rounded-xl capitalize font-bold transition flex items-center gap-2 ${tab === t ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
+              {t === 'orders' && <ShoppingCart size={18}/>}
+              {t === 'products' && <Package size={18}/>}
+              {t === 'settings' && <Settings size={18}/>}
+              {t}
+            </button>
+          ))}
+        </nav>
+        <button className="w-full text-left p-4 text-red-500 font-bold hover:bg-red-50 rounded-xl transition flex items-center gap-2 mt-auto" onClick={() => { setIsAdmin(false); setView('home'); }}>
+          <LogOut size={18}/> Logout
+        </button>
       </div>
 
-      <div className="flex-1 p-6 md:p-10 bg-gray-50">
+      {/* Main Content */}
+      <div className="flex-1 p-6 md:p-10 bg-gray-50 overflow-y-auto max-h-screen">
         {tab === 'orders' && (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold mb-6">Recent Orders</h2>
+          <div className="space-y-6">
+            <h2 className="text-3xl font-bold mb-6">Recent Orders</h2>
+            {orders.length === 0 && <p className="text-gray-400">No orders placed yet.</p>}
             {orders.map(o => (
-              <div key={o.id} className="bg-white p-4 rounded-xl border flex justify-between items-center">
-                <div>
-                  <p className="text-xs font-bold text-blue-600">ID: {o.id.slice(-6)}</p>
-                  <p className="font-bold">{o.customer?.name} ({o.customer?.phone})</p>
-                  <p className="text-sm text-gray-500">₹{o.total} • {o.items?.length} items</p>
+              <div key={o.id} className="bg-white p-6 rounded-2xl border shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded tracking-widest uppercase">ID: {o.id.slice(-6)}</p>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${o.status === 'Pending' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
+                      {o.status}
+                    </span>
+                  </div>
+                  <h4 className="font-bold text-lg">{o.customer?.name} ({o.customer?.phone})</h4>
+                  <p className="text-sm text-gray-500 leading-tight max-w-sm">{o.customer?.address}, {o.customer?.pin}</p>
+                  <p className="text-xs font-bold text-gray-400 mt-2">{o.items?.length} items • ₹{o.total}</p>
                 </div>
-                <div className={`px-4 py-1 rounded-full text-xs font-bold ${o.status === 'Pending' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
-                  {o.status}
+                <div className="flex gap-2 w-full md:w-auto">
+                  {o.status === 'Pending' && (
+                    <button 
+                      className="flex-1 md:flex-none bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-bold"
+                      onClick={async () => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', o.id), { status: 'Delivered' })}
+                    >MARK DELIVERED</button>
+                  )}
+                  <button className="flex-1 md:flex-none border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-xs font-bold" onClick={() => window.open(`https://wa.me/${o.customer?.phone}?text=Hello ${o.customer?.name}, regarding your order #${o.id.slice(-6)}`)}>
+                    CONTACT
+                  </button>
                 </div>
-                {o.status === 'Pending' && (
-                  <button 
-                    className="bg-green-600 text-white px-4 py-2 rounded text-xs"
-                    onClick={async () => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', o.id), { status: 'Delivered' })}
-                  >DELIVERED</button>
-                )}
               </div>
             ))}
           </div>
@@ -393,21 +463,24 @@ function AdminPanel({ products, orders, setView, settings, setSettings }) {
 
         {tab === 'products' && (
           <div>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Manage Products</h2>
-              <button className="bg-blue-600 text-white px-6 py-2 rounded font-bold" onClick={() => { setEditItem(null); setShowModal(true); }}>+ ADD NEW</button>
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-3xl font-bold">Store Inventory</h2>
+              <button className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition" onClick={() => { setEditItem(null); setShowModal(true); }}>+ ADD PRODUCT</button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {products.map(p => (
-                <div key={p.id} className="bg-white p-4 rounded-xl border flex gap-4 items-center">
-                  <img src={p.images?.[0]} className="w-16 h-16 object-contain bg-gray-50 rounded" alt="" />
+                <div key={p.id} className="bg-white p-5 rounded-2xl border shadow-sm flex gap-4 items-center">
+                  <div className="w-20 h-20 bg-gray-50 rounded-xl p-2 flex items-center justify-center">
+                    <img src={p.images?.[0] || 'https://via.placeholder.com/150'} className="max-h-full object-contain" alt="" />
+                  </div>
                   <div className="flex-1">
                     <h4 className="font-bold text-sm line-clamp-1">{p.name}</h4>
-                    <p className="font-bold text-green-600">₹{p.price}</p>
+                    <p className="font-black text-green-600">₹{p.price}</p>
+                    <span className="text-[10px] text-gray-400 uppercase font-bold">{p.category}</span>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <button onClick={() => { setEditItem(p); setShowModal(true); }}><Edit2 size={16} className="text-blue-600" /></button>
-                    <button onClick={async () => { if(confirm("Delete?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', p.id)) }}><Trash2 size={16} className="text-red-500" /></button>
+                    <button onClick={() => { setEditItem(p); setShowModal(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit2 size={16}/></button>
+                    <button onClick={async () => { if(confirm("Delete this product?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', p.id)) }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"><Trash2 size={16}/></button>
                   </div>
                 </div>
               ))}
@@ -417,16 +490,22 @@ function AdminPanel({ products, orders, setView, settings, setSettings }) {
         )}
 
         {tab === 'settings' && (
-          <div className="max-w-md bg-white p-6 rounded-xl border space-y-4">
-            <h2 className="text-2xl font-bold mb-4">Store Settings</h2>
-            <div>
-              <label className="text-sm font-bold text-gray-500">WhatsApp Number (with country code)</label>
-              <input className="w-full p-2 border rounded mt-1" value={settings.whatsapp} onChange={e => setSettings({...settings, whatsapp: e.target.value})} />
+          <div className="max-w-md bg-white p-8 rounded-2xl border shadow-lg space-y-6">
+            <h2 className="text-3xl font-bold mb-4">Settings</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-black text-gray-400 uppercase tracking-widest block mb-2">WhatsApp Order Receiver</label>
+                <input className="w-full p-4 border rounded-xl outline-none" placeholder="Country Code + Mobile (919000000000)" value={settings.whatsapp} onChange={e => setSettings({...settings, whatsapp: e.target.value})} />
+                <p className="text-[10px] text-gray-400 mt-2">Naye orders ki details is number par WhatsApp ki jayengi.</p>
+              </div>
+              <button 
+                className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition"
+                onClick={async () => { 
+                  await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), settings); 
+                  alert("Configuration updated successfully!"); 
+                }}
+              >SAVE ALL SETTINGS</button>
             </div>
-            <button 
-              className="w-full bg-blue-600 text-white py-2 rounded font-bold"
-              onClick={async () => { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), settings); alert("Saved!"); }}
-            >SAVE SETTINGS</button>
           </div>
         )}
       </div>
