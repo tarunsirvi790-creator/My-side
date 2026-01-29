@@ -271,7 +271,7 @@ export default function App() {
                 <div className="md:col-span-2 space-y-4">
                   {cart.map(item => (
                     <div key={item.cartId} className="bg-white p-4 rounded-xl border flex gap-4 items-center">
-                      <img src={item.images?.[0] || 'https://via.placeholder.com/150'} className="w-20 h-20 object-contain bg-gray-50 rounded" alt="" />
+                      <img src={item.images?.[0] || 'https://via.placeholder.com/150'} className="w-20 h-20 object-contain bg-gray-50 rounded" alt="main" />
                       <div className="flex-1">
                         <h4 className="font-bold">{item.name}</h4>
                         <p className="text-xs text-gray-400">Size: {item.selectedSize}</p>
