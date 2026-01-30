@@ -1,132 +1,472 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Battle Royale Web Game</title>
-<style>
-body{margin:0;overflow:hidden;background:black}
-#ui{position:fixed;top:10px;left:10px;color:#0f0;font-family:monospace}
-#msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:red;font-size:40px;display:none}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candy Crush - Talha</title>
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #fce4ec;
+            --panel-color: rgba(255, 255, 255, 0.9);
+            --accent-color: #ff4081;
+        }
+
+        body {
+            background-image: url('https://raw.githubusercontent.com/arpit456jain/Amazing-Js-Projects/master/Candy%20Crush/utils/bg.png');
+            background-size: cover;
+            background-attachment: fixed;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Montserrat', sans-serif;
+            overflow: hidden;
+            touch-action: none; /* Prevent scrolling while playing */
+        }
+
+        /* Mode Selection Screen */
+        #modeSelection {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            backdrop-filter: blur(5px);
+        }
+
+        .menu-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .menu-card h2 {
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+
+        .menu-card button {
+            display: block;
+            width: 200px;
+            margin: 10px auto;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            background-color: var(--accent-color);
+            border: none;
+            border-radius: 50px;
+            color: white;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .menu-card button:hover {
+            background-color: #e91e63;
+            transform: scale(1.05);
+        }
+
+        /* Main Game Container */
+        .game-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            max-width: 100vw;
+        }
+
+        .ui-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 560px;
+            background: var(--panel-color);
+            padding: 15px 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .score-box h3 { margin: 0; font-size: 0.8rem; text-transform: uppercase; color: #888; }
+        .score-box h1 { margin: 0; font-size: 1.5rem; color: var(--accent-color); }
+
+        #timer { font-weight: bold; color: #ff5252; }
+
+        #changeMode {
+            padding: 8px 15px;
+            background: #eee;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* Grid Styling */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            width: 90vw;
+            height: 90vw;
+            max-width: 560px;
+            max-height: 560px;
+            background-color: rgba(109, 127, 151, 0.4);
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+            gap: 4px;
+        }
+
+        .grid div {
+            aspect-ratio: 1 / 1;
+            background-size: 85%;
+            background-repeat: no-repeat;
+            background-position: center;
+            border-radius: 8px;
+            cursor: grab;
+            transition: transform 0.1s;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .grid div:active {
+            cursor: grabbing;
+            transform: scale(1.1);
+            z-index: 10;
+        }
+
+        /* Message Box */
+        #messageBox {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            z-index: 200;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+
+        @media (max-width: 600px) {
+            .ui-top { width: 90%; }
+            .grid { padding: 5px; gap: 2px; }
+        }
+    </style>
 </head>
 <body>
 
-<div id="ui">HP: <span id="hp">100</span></div>
-<div id="msg">YOU DIED</div>
+    <!-- Mode Selection -->
+    <div id="modeSelection">
+        <div class="menu-card">
+            <h2>Candy Crush</h2>
+            <button id="endlessMode">Endless Mode</button>
+            <button id="timedMode">Timed Mode (2m)</button>
+        </div>
+    </div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+    <!-- Game Elements -->
+    <div class="game-container">
+        <div class="ui-top">
+            <div class="score-box">
+                <h3>Score</h3>
+                <h1 id="score">0</h1>
+            </div>
+            <div id="timer"></div>
+            <button id="changeMode">Quit</button>
+        </div>
+        <div class="grid"></div>
+    </div>
 
-<script>
-// ---------- BASIC SETUP ----------
-let scene=new THREE.Scene();
-let camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,1000);
-let renderer=new THREE.WebGLRenderer();
-renderer.setSize(innerWidth,innerHeight);
-document.body.appendChild(renderer.domElement);
+    <!-- Custom Alert -->
+    <div id="messageBox">
+        <h2 id="msgTitle">Time's Up!</h2>
+        <p id="msgText">Your final score: 0</p>
+        <button onclick="location.reload()" style="padding: 10px 20px; background: var(--accent-color); color: white; border: none; border-radius: 5px; cursor: pointer;">Play Again</button>
+    </div>
 
-// ---------- PLAYER ----------
-let playerHP=100;
-let playerGeo=new THREE.BoxGeometry(1,1,1);
-let playerMat=new THREE.MeshBasicMaterial({color:0x00ff00});
-let player=new THREE.Mesh(playerGeo,playerMat);
-scene.add(player);
-camera.position.set(0,5,10);
-camera.lookAt(player.position);
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const grid = document.querySelector(".grid");
+            const scoreDisplay = document.getElementById("score");
+            const timerDisplay = document.getElementById("timer");
+            const modeSelection = document.getElementById("modeSelection");
+            const gameContainer = document.querySelector(".game-container");
+            const endlessButton = document.getElementById("endlessMode");
+            const timedButton = document.getElementById("timedMode");
+            const changeModeButton = document.getElementById("changeMode");
+            const messageBox = document.getElementById("messageBox");
 
-// ---------- FLOOR ----------
-let floor=new THREE.Mesh(
-  new THREE.PlaneGeometry(100,100),
-  new THREE.MeshBasicMaterial({color:0x222222,side:THREE.DoubleSide})
-);
-floor.rotation.x=Math.PI/2;
-scene.add(floor);
+            const width = 8;
+            const squares = [];
+            let score = 0;
+            let currentMode = null;
+            let timeLeft = 0;
+            let gameInterval = null;
+            let timerInterval = null;
 
-// ---------- ENEMIES ----------
-let enemies=[];
-function spawnEnemy(){
-  let e=new THREE.Mesh(
-    new THREE.BoxGeometry(1,1,1),
-    new THREE.MeshBasicMaterial({color:0xff0000})
-  );
-  e.position.set(
-    (Math.random()-0.5)*40,
-    0.5,
-    (Math.random()-0.5)*40
-  );
-  e.hp=30;
-  scene.add(e);
-  enemies.push(e);
-}
-for(let i=0;i<5;i++) spawnEnemy();
+            const candyColors = [
+                "url(https://raw.githubusercontent.com/arpit456jain/Amazing-Js-Projects/master/Candy%20Crush/utils/red-candy.png)",
+                "url(https://raw.githubusercontent.com/arpit456jain/Amazing-Js-Projects/master/Candy%20Crush/utils/yellow-candy.png)",
+                "url(https://raw.githubusercontent.com/arpit456jain/Amazing-Js-Projects/master/Candy%20Crush/utils/orange-candy.png)",
+                "url(https://raw.githubusercontent.com/arpit456jain/Amazing-Js-Projects/master/Candy%20Crush/utils/green-candy.png)",
+                "url(https://raw.githubusercontent.com/arpit456jain/Amazing-Js-Projects/master/Candy%20Crush/utils/blue-candy.png)",
+                "url(https://raw.githubusercontent.com/arpit456jain/Amazing-Js-Projects/master/Candy%20Crush/utils/purple-candy.png)",
+            ];
 
-// ---------- CONTROLS ----------
-let keys={};
-document.addEventListener("keydown",e=>keys[e.key]=true);
-document.addEventListener("keyup",e=>keys[e.key]=false);
+            function createBoard() {
+                grid.innerHTML = "";
+                squares.length = 0;
+                for (let i = 0; i < width * width; i++) {
+                    const square = document.createElement("div");
+                    square.setAttribute("draggable", true);
+                    square.setAttribute("id", i);
+                    let randomColor = Math.floor(Math.random() * candyColors.length);
+                    square.style.backgroundImage = candyColors[randomColor];
+                    grid.appendChild(square);
+                    squares.push(square);
 
-// ---------- SHOOT ----------
-let bullets=[];
-document.addEventListener("click",()=>{
-  let b=new THREE.Mesh(
-    new THREE.SphereGeometry(0.1),
-    new THREE.MeshBasicMaterial({color:0xffff00})
-  );
-  b.position.copy(player.position);
-  b.dir=new THREE.Vector3(0,0,-1);
-  scene.add(b);
-  bullets.push(b);
-});
+                    // Drag Events
+                    square.addEventListener("dragstart", dragStart);
+                    square.addEventListener("dragover", e => e.preventDefault());
+                    square.addEventListener("drop", dragDrop);
+                    
+                    // Touch Support
+                    square.addEventListener("touchstart", touchStart, { passive: false });
+                    square.addEventListener("touchmove", touchMove, { passive: false });
+                    square.addEventListener("touchend", touchEnd, { passive: false });
+                }
+            }
 
-// ---------- GAME LOOP ----------
-function animate(){
-  requestAnimationFrame(animate);
+            let colorBeingDragged, colorBeingReplaced, squareIdBeingDragged, squareIdBeingReplaced;
 
-  // movement
-  if(keys.w) player.position.z-=0.2;
-  if(keys.s) player.position.z+=0.2;
-  if(keys.a) player.position.x-=0.2;
-  if(keys.d) player.position.x+=0.2;
+            function dragStart() {
+                colorBeingDragged = this.style.backgroundImage;
+                squareIdBeingDragged = parseInt(this.id);
+            }
 
-  camera.position.x=player.position.x;
-  camera.position.z=player.position.z+10;
+            function dragDrop() {
+                colorBeingReplaced = this.style.backgroundImage;
+                squareIdBeingReplaced = parseInt(this.id);
+                
+                const validMoves = [
+                    squareIdBeingDragged - 1,
+                    squareIdBeingDragged - width,
+                    squareIdBeingDragged + 1,
+                    squareIdBeingDragged + width
+                ];
 
-  // bullets
-  bullets.forEach((b,i)=>{
-    b.position.add(b.dir.clone().multiplyScalar(0.8));
-    enemies.forEach((e,ei)=>{
-      if(b.position.distanceTo(e.position)<0.8){
-        e.hp-=10;
-        scene.remove(b);
-        bullets.splice(i,1);
-        if(e.hp<=0){
-          scene.remove(e);
-          enemies.splice(ei,1);
-          spawnEnemy();
-        }
-      }
-    });
-  });
+                if (validMoves.includes(squareIdBeingReplaced)) {
+                    // Swap
+                    squares[squareIdBeingDragged].style.backgroundImage = colorBeingReplaced;
+                    squares[squareIdBeingReplaced].style.backgroundImage = colorBeingDragged;
+                    
+                    // Check if swap results in a match
+                    if (!checkImmediateMatches()) {
+                        // Revert swap if no match
+                        setTimeout(() => {
+                            squares[squareIdBeingDragged].style.backgroundImage = colorBeingDragged;
+                            squares[squareIdBeingReplaced].style.backgroundImage = colorBeingReplaced;
+                        }, 200);
+                    }
+                }
+            }
 
-  // enemies attack
-  enemies.forEach(e=>{
-    e.lookAt(player.position);
-    e.position.add(
-      e.getWorldDirection(new THREE.Vector3()).multiplyScalar(0.03)
-    );
-    if(e.position.distanceTo(player.position)<1){
-      playerHP-=0.2;
-      document.getElementById("hp").innerText=Math.floor(playerHP);
-    }
-  });
+            // Touch logic variables
+            let touchStartX, touchStartY;
+            function touchStart(e) {
+                e.preventDefault();
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                squareIdBeingDragged = parseInt(this.id);
+                colorBeingDragged = this.style.backgroundImage;
+            }
 
-  if(playerHP<=0){
-    document.getElementById("msg").style.display="block";
-    return;
-  }
+            function touchMove(e) { e.preventDefault(); }
 
-  renderer.render(scene,camera);
-}
-animate();
-</script>
+            function touchEnd(e) {
+                e.preventDefault();
+                let touchEndX = e.changedTouches[0].clientX;
+                let touchEndY = e.changedTouches[0].clientY;
+                
+                let dx = touchEndX - touchStartX;
+                let dy = touchEndY - touchStartY;
+                
+                if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return; // Simple tap
+
+                let direction = "";
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    direction = dx > 0 ? "right" : "left";
+                } else {
+                    direction = dy > 0 ? "down" : "up";
+                }
+
+                let targetId;
+                if (direction === "right") targetId = squareIdBeingDragged + 1;
+                if (direction === "left") targetId = squareIdBeingDragged - 1;
+                if (direction === "up") targetId = squareIdBeingDragged - width;
+                if (direction === "down") targetId = squareIdBeingDragged + width;
+
+                // Bounds check
+                if (targetId >= 0 && targetId < 64) {
+                    // Row wrapping check
+                    if ((direction === "right" && targetId % width === 0) || 
+                        (direction === "left" && (targetId + 1) % width === 0)) {
+                        return;
+                    }
+                    squareIdBeingReplaced = targetId;
+                    colorBeingReplaced = squares[targetId].style.backgroundImage;
+                    
+                    // Perform swap logic
+                    squares[squareIdBeingDragged].style.backgroundImage = colorBeingReplaced;
+                    squares[squareIdBeingReplaced].style.backgroundImage = colorBeingDragged;
+
+                    if (!checkImmediateMatches()) {
+                        setTimeout(() => {
+                            squares[squareIdBeingDragged].style.backgroundImage = colorBeingDragged;
+                            squares[squareIdBeingReplaced].style.backgroundImage = colorBeingReplaced;
+                        }, 200);
+                    }
+                }
+            }
+
+            function checkImmediateMatches() {
+                let r4 = checkRowForFour();
+                let c4 = checkColumnForFour();
+                let r3 = checkRowForThree();
+                let c3 = checkColumnForThree();
+                return r4 || c4 || r3 || c3;
+            }
+
+            function checkRowForFour() {
+                let found = false;
+                for (let i = 0; i < 61; i++) {
+                    let rowOfFour = [i, i + 1, i + 2, i + 3];
+                    let decidedColor = squares[i].style.backgroundImage;
+                    if (i % width > width - 4) continue;
+                    if (rowOfFour.every(idx => squares[idx].style.backgroundImage === decidedColor && decidedColor !== "")) {
+                        score += 4;
+                        found = true;
+                        rowOfFour.forEach(idx => squares[idx].style.backgroundImage = "");
+                    }
+                }
+                return found;
+            }
+
+            function checkColumnForFour() {
+                let found = false;
+                for (let i = 0; i < 40; i++) {
+                    let colOfFour = [i, i + width, i + width * 2, i + width * 3];
+                    let decidedColor = squares[i].style.backgroundImage;
+                    if (colOfFour.every(idx => squares[idx].style.backgroundImage === decidedColor && decidedColor !== "")) {
+                        score += 4;
+                        found = true;
+                        colOfFour.forEach(idx => squares[idx].style.backgroundImage = "");
+                    }
+                }
+                return found;
+            }
+
+            function checkRowForThree() {
+                let found = false;
+                for (let i = 0; i < 62; i++) {
+                    let rowOfThree = [i, i + 1, i + 2];
+                    let decidedColor = squares[i].style.backgroundImage;
+                    if (i % width > width - 3) continue;
+                    if (rowOfThree.every(idx => squares[idx].style.backgroundImage === decidedColor && decidedColor !== "")) {
+                        score += 3;
+                        found = true;
+                        rowOfThree.forEach(idx => squares[idx].style.backgroundImage = "");
+                    }
+                }
+                return found;
+            }
+
+            function checkColumnForThree() {
+                let found = false;
+                for (let i = 0; i < 48; i++) {
+                    let colOfThree = [i, i + width, i + width * 2];
+                    let decidedColor = squares[i].style.backgroundImage;
+                    if (colOfThree.every(idx => squares[idx].style.backgroundImage === decidedColor && decidedColor !== "")) {
+                        score += 3;
+                        found = true;
+                        colOfThree.forEach(idx => squares[idx].style.backgroundImage = "");
+                    }
+                }
+                return found;
+            }
+
+            function moveIntoSquareBelow() {
+                // Shift down
+                for (let i = 0; i < 56; i++) {
+                    if (squares[i + width].style.backgroundImage === "") {
+                        squares[i + width].style.backgroundImage = squares[i].style.backgroundImage;
+                        squares[i].style.backgroundImage = "";
+                    }
+                }
+                // Fill top row
+                for (let i = 0; i < 8; i++) {
+                    if (squares[i].style.backgroundImage === "") {
+                        let randomColor = Math.floor(Math.random() * candyColors.length);
+                        squares[i].style.backgroundImage = candyColors[randomColor];
+                    }
+                }
+            }
+
+            function gameLoop() {
+                checkRowForFour();
+                checkColumnForFour();
+                checkRowForThree();
+                checkColumnForThree();
+                moveIntoSquareBelow();
+                scoreDisplay.innerHTML = score;
+            }
+
+            function startGame(mode) {
+                currentMode = mode;
+                score = 0;
+                modeSelection.style.display = "none";
+                gameContainer.style.display = "flex";
+                createBoard();
+                
+                gameInterval = setInterval(gameLoop, 150);
+
+                if (mode === "timed") {
+                    timeLeft = 120;
+                    updateTimerDisplay();
+                    timerInterval = setInterval(() => {
+                        timeLeft--;
+                        updateTimerDisplay();
+                        if (timeLeft <= 0) endGame();
+                    }, 1000);
+                } else {
+                    timerDisplay.innerHTML = "ENDLESS";
+                }
+            }
+
+            function updateTimerDisplay() {
+                let m = Math.floor(timeLeft / 60);
+                let s = timeLeft % 60;
+                timerDisplay.innerHTML = `${m}:${s < 10 ? '0' : ''}${s}`;
+            }
+
+            function endGame() {
+                clearInterval(gameInterval);
+                clearInterval(timerInterval);
+                document.getElementById("msgText").innerText = `Your final score: ${score}`;
+                messageBox.style.display = "block";
+            }
+
+            changeModeButton.addEventListener("click", () => location.reload());
+            endlessButton.addEventListener("click", () => startGame("endless"));
+            timedButton.addEventListener("click", () => startGame("timed"));
+        });
+    </script>
 </body>
 </html>
