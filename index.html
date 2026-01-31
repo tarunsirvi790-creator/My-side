@@ -24,11 +24,13 @@
         
         .brand-font { font-family: 'Playfair Display', serif; }
         
-        /* App Bar with Golden Touch */
+        /* App Bar with Golden Touch - UPDATED */
         .app-header { 
-            background: rgba(255, 255, 255, 0.95); 
-            backdrop-filter: blur(10px);
-            position: sticky; top: 0; z-index: 50; 
+            /* Golden background instead of white */
+            background: linear-gradient(to right, #FFF8E1, #ffe0b2);
+            /* Changed from sticky to relative so it scrolls away */
+            position: relative; 
+            z-index: 50; 
             box-shadow: 0 4px 20px rgba(184, 134, 11, 0.15); 
             border-bottom: 1px solid rgba(184, 134, 11, 0.2);
         }
@@ -115,9 +117,9 @@
             </button>
         </div>
 
-        <!-- Functional Search Bar -->
+        <!-- Functional Search Bar - UPDATED BG to White -->
         <div class="px-4 pb-4">
-            <div class="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3 shadow-inner focus-within:ring-2 focus-within:ring-yellow-400/50 transition-all">
+            <div class="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm focus-within:ring-2 focus-within:ring-yellow-400/50 transition-all">
                 <i class="fas fa-search text-gray-400 text-lg"></i>
                 <!-- Added oninput event for searching -->
                 <input type="text" 
