@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SJS Manager - Secure</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SJS Manager - Pro Database</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
@@ -31,127 +31,145 @@
             color: #374151; /* gray-700 */
             transition: all 0.2s;
         }
+
+        /* Mobile Fixes */
+        input, select {
+            font-size: 16px !important; /* Prevents iOS Zoom on focus */
+        }
     </style>
 </head>
-<body class="h-screen flex flex-col">
+<body class="h-[100dvh] flex flex-col overflow-hidden">
 
     <!-- LOGIN LOCK SCREEN (Security Layer) -->
-    <div id="loginOverlay" class="fixed inset-0 bg-green-900 flex flex-col items-center justify-center z-50">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl w-80 text-center transform transition-all scale-100">
+    <div id="loginOverlay" class="fixed inset-0 bg-green-900 flex flex-col items-center justify-center z-50 px-4">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center transform transition-all scale-100">
             <div class="mb-4 text-5xl">🔒</div>
-            <h2 class="text-2xl font-bold text-gray-800 mb-2">SJS Security</h2>
-            <p class="text-gray-500 mb-6 text-sm">अपना पासवर्ड डालें</p>
+            <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-2">SJS Security</h2>
+            <p class="text-gray-500 mb-6 text-sm">Enter Password (niku9828)</p>
             
-            <input type="password" id="loginPass" class="w-full p-3 border-2 border-gray-300 rounded-lg mb-4 text-center text-xl tracking-widest outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100 transition" placeholder="****">
+            <!-- Added autocapitalize="none" to prevent mobile keyboard from capitalizing first letter -->
+            <input type="password" id="loginPass" autocapitalize="none" autocomplete="off" class="w-full p-3 border-2 border-gray-300 rounded-lg mb-4 text-center text-xl tracking-widest outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100 transition" placeholder="****">
             
             <button onclick="attemptLogin()" class="w-full bg-green-700 text-white font-bold py-3 rounded-lg hover:bg-green-800 shadow-lg active:scale-95 transition">
                 UNLOCK APP
             </button>
             
-            <p id="loginMsg" class="text-red-500 text-sm mt-3 hidden font-bold animate-pulse">❌ गलत पासवर्ड!</p>
+            <p id="loginMsg" class="text-red-500 text-sm mt-3 hidden font-bold animate-pulse">❌ Wrong Password!</p>
         </div>
         <p class="text-green-200 mt-8 text-xs">Powered by Shree Jagdambha Selection</p>
     </div>
 
     <!-- HEADER / NAVIGATION -->
-    <header class="bg-green-700 text-white shadow-md z-10">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-            <h1 class="text-xl md:text-2xl font-bold flex items-center gap-2">
-                👕 Shree Jagdambha Selection Manager
-            </h1>
-            <div class="flex items-center gap-3">
-                <div class="text-xs md:text-sm bg-green-800 px-3 py-1 rounded hidden md:block">
-                    User: <span class="font-bold text-yellow-300">Owner</span>
+    <header class="bg-green-700 text-white shadow-md z-10 shrink-0">
+        <div class="max-w-7xl mx-auto px-3 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-2 overflow-hidden">
+                <span class="text-xl">👕</span>
+                <h1 class="text-lg md:text-2xl font-bold truncate leading-tight">
+                    SJS Manager
+                </h1>
+            </div>
+            
+            <div class="flex items-center gap-2 shrink-0">
+                <div class="text-xs md:text-sm bg-green-800 px-2 py-1 rounded hidden md:block">
+                    <span class="font-bold text-yellow-300">Owner</span>
                 </div>
-                <button onclick="lockApp()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs font-bold shadow">
-                    🔒 Lock
+                <button onclick="lockApp()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-xs font-bold shadow">
+                    Lock
                 </button>
             </div>
         </div>
         
         <!-- TABS -->
-        <div class="max-w-7xl mx-auto px-4 flex overflow-x-auto no-scrollbar gap-2 mt-2">
-            <button onclick="showTab('sell')" id="tab-sell" class="tab-btn active px-6 py-3 font-semibold rounded-t-lg transition hover:bg-green-600">
-                💰 बिक्री (Sale)
+        <div class="max-w-7xl mx-auto px-2 flex overflow-x-auto no-scrollbar gap-1 mt-1 pb-1">
+            <button onclick="showTab('sell')" id="tab-sell" class="tab-btn active flex-1 min-w-[100px] px-2 py-3 text-sm font-semibold rounded-t-lg transition text-center whitespace-nowrap">
+                💰 Sales
             </button>
-            <button onclick="showTab('purchase')" id="tab-purchase" class="tab-btn px-6 py-3 font-semibold rounded-t-lg transition hover:bg-green-600 text-white/80">
-                📦 खरीद (Purchase)
+            <button onclick="showTab('purchase')" id="tab-purchase" class="tab-btn flex-1 min-w-[100px] px-2 py-3 text-sm font-semibold rounded-t-lg transition text-white/80 text-center whitespace-nowrap">
+                📦 Purchase
             </button>
-            <button onclick="showTab('expense')" id="tab-expense" class="tab-btn px-6 py-3 font-semibold rounded-t-lg transition hover:bg-green-600 text-white/80">
-                ☕ खर्चे (Expenses)
+            <button onclick="showTab('expense')" id="tab-expense" class="tab-btn flex-1 min-w-[100px] px-2 py-3 text-sm font-semibold rounded-t-lg transition text-white/80 text-center whitespace-nowrap">
+                ☕ Expenses
             </button>
-            <button onclick="showTab('report')" id="tab-report" class="tab-btn px-6 py-3 font-semibold rounded-t-lg transition hover:bg-green-600 text-white/80 border-l border-white/20">
-                📊 CA Report
+            <button onclick="showTab('report')" id="tab-report" class="tab-btn flex-1 min-w-[100px] px-2 py-3 text-sm font-semibold rounded-t-lg transition text-white/80 border-l border-white/20 text-center whitespace-nowrap">
+                📊 Report
             </button>
         </div>
     </header>
 
     <!-- MAIN CONTENT AREA -->
-    <main class="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50">
-        <div class="max-w-5xl mx-auto">
+    <main class="flex-1 overflow-y-auto p-3 md:p-6 bg-gray-50 scroll-smooth">
+        <div class="max-w-5xl mx-auto pb-20"> <!-- Extra padding bottom for mobile scroll -->
+
+            <!-- LOADING INDICATOR -->
+            <div id="loadingData" class="hidden text-center py-4 text-green-700 font-bold bg-green-50 rounded-lg mb-4">
+                ⏳ Loading Data from Database...
+            </div>
 
             <!-- SECTION 1: NEW SALE -->
             <div id="view-sell" class="tab-content block">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                     <!-- Entry Form -->
-                    <div class="md:col-span-1 bg-white p-6 rounded-xl shadow-md border border-gray-200 h-fit">
+                    <div class="md:col-span-1 bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-200 h-fit">
                         <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">New Sale Entry</h2>
                         
-                        <div class="space-y-4">
+                        <div class="space-y-3">
                             <div>
-                                <label class="text-sm font-semibold text-gray-600">Item Name (कपड़ा)</label>
-                                <input type="text" id="saleItem" placeholder="e.g. Jeans, Shirt" class="w-full p-2 border rounded focus:ring-2 focus:ring-green-500 outline-none">
+                                <label class="text-sm font-semibold text-gray-600">Item Name</label>
+                                <input type="text" id="saleItem" placeholder="e.g. Jeans, Shirt" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-gray-50">
                             </div>
                             
-                            <div class="grid grid-cols-2 gap-2">
+                            <div class="grid grid-cols-2 gap-3">
                                 <div>
                                     <label class="text-sm font-semibold text-gray-600">Price (₹)</label>
-                                    <input type="number" id="saleAmount" placeholder="0" class="w-full p-2 border rounded focus:ring-2 focus:ring-green-500 outline-none">
+                                    <input type="number" id="saleAmount" placeholder="0" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-gray-50">
                                 </div>
                                 <div>
                                     <label class="text-sm font-semibold text-gray-600">Mode</label>
-                                    <select id="saleMode" class="w-full p-2 border rounded bg-white">
+                                    <select id="saleMode" class="w-full p-2.5 border rounded-lg bg-gray-50">
                                         <option value="Cash">Cash</option>
                                         <option value="UPI">Online/UPI</option>
-                                        <option value="Udhaar">Udhaar</option>
+                                        <option value="Udhaar">Udhaar (Credit)</option>
                                     </select>
                                 </div>
                             </div>
 
                             <div>
                                 <label class="text-sm font-semibold text-gray-600">Customer (Optional)</label>
-                                <input type="text" id="saleCustomer" placeholder="Enter name" class="w-full p-2 border rounded focus:ring-2 focus:ring-green-500 outline-none">
+                                <input type="text" id="saleCustomer" placeholder="Enter name" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-gray-50">
                             </div>
 
-                            <button onclick="addSale()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-lg transform active:scale-95 transition">
+                            <button onclick="addSale()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-lg shadow-lg transform active:scale-95 transition mt-2">
                                 SAVE SALE
                             </button>
                         </div>
                     </div>
 
                     <!-- Recent Sales List -->
-                    <div class="md:col-span-2 bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                    <div class="md:col-span-2 bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-200">
                         <div class="flex justify-between items-center mb-4">
-                            <h2 class="text-lg font-bold text-gray-800">Today's Sales</h2>
+                            <h2 class="text-lg font-bold text-gray-800">Recent Sales</h2>
                             <div class="text-right">
-                                <span class="text-sm text-gray-500">Total Today:</span>
-                                <div class="text-2xl font-bold text-green-700">₹<span id="todayTotal">0</span></div>
+                                <span class="text-xs md:text-sm text-gray-500 block">Total Today</span>
+                                <span class="text-xl md:text-2xl font-bold text-green-700">₹<span id="todayTotal">0</span></span>
                             </div>
                         </div>
 
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm text-left text-gray-500">
+                        <div class="overflow-x-auto -mx-4 md:mx-0">
+                            <table class="w-full text-sm text-left text-gray-500 min-w-[300px]">
                                 <thead class="text-xs text-gray-700 uppercase bg-green-50">
                                     <tr>
                                         <th class="px-4 py-3">Item</th>
-                                        <th class="px-4 py-3">Mode</th>
-                                        <th class="px-4 py-3 text-right">Amount</th>
-                                        <th class="px-4 py-3 text-center">Del</th>
+                                        <th class="px-2 py-3">Mode</th>
+                                        <th class="px-4 py-3 text-right">Amt</th>
+                                        <th class="px-2 py-3 text-center">Del</th>
                                     </tr>
                                 </thead>
                                 <tbody id="salesTableBody"></tbody>
                             </table>
                             <div id="noSalesMsg" class="text-center py-8 text-gray-400">No sales yet today.</div>
+                            <div class="text-center text-xs text-gray-400 mt-2 p-2 bg-gray-50 rounded">
+                                * Showing only last 50 entries for performance. Check Report for full data.
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -159,137 +177,146 @@
 
             <!-- SECTION 2: PURCHASE -->
             <div id="view-purchase" class="tab-content hidden">
-                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-6">
+                <div class="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-200 mb-6">
                     <h2 class="text-lg font-bold text-gray-800 mb-4">Add Purchase (Stock)</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                        <div class="md:col-span-1">
-                            <label class="text-sm font-semibold text-gray-600">Supplier</label>
-                            <input type="text" id="purchSupplier" placeholder="Name" class="w-full p-2 border rounded">
+                    <div class="grid grid-cols-1 gap-3">
+                        <div>
+                            <label class="text-sm font-semibold text-gray-600">Supplier Name</label>
+                            <input type="text" id="purchSupplier" placeholder="Name" class="w-full p-2.5 border rounded-lg bg-gray-50">
                         </div>
-                        <div class="md:col-span-1">
-                            <label class="text-sm font-semibold text-gray-600">Item</label>
-                            <input type="text" id="purchItem" placeholder="Description" class="w-full p-2 border rounded">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-sm font-semibold text-gray-600">Item</label>
+                                <input type="text" id="purchItem" placeholder="Desc" class="w-full p-2.5 border rounded-lg bg-gray-50">
+                            </div>
+                            <div>
+                                <label class="text-sm font-semibold text-gray-600">Amount (₹)</label>
+                                <input type="number" id="purchAmount" placeholder="0" class="w-full p-2.5 border rounded-lg bg-gray-50">
+                            </div>
                         </div>
-                        <div class="md:col-span-1">
-                            <label class="text-sm font-semibold text-gray-600">Bill Total (₹)</label>
-                            <input type="number" id="purchAmount" placeholder="0" class="w-full p-2 border rounded">
-                        </div>
-                        <button onclick="addPurchase()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded h-10">Add</button>
+                        <button onclick="addPurchase()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg mt-2">Add Purchase</button>
                     </div>
                 </div>
 
-                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                    <h3 class="font-bold text-gray-700 mb-2">Recent Purchases</h3>
-                    <table class="w-full text-sm text-left">
-                        <thead class="bg-blue-50 text-gray-700 uppercase text-xs">
-                            <tr>
-                                <th class="px-4 py-2">Date</th>
-                                <th class="px-4 py-2">Supplier</th>
-                                <th class="px-4 py-2">Item</th>
-                                <th class="px-4 py-2 text-right">Amount</th>
-                                <th class="px-4 py-2 text-center">Del</th>
-                            </tr>
-                        </thead>
-                        <tbody id="purchaseTableBody"></tbody>
-                    </table>
+                <div class="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-200">
+                    <h3 class="font-bold text-gray-700 mb-2">Recent Purchases (Last 50)</h3>
+                    <div class="overflow-x-auto -mx-4 md:mx-0">
+                        <table class="w-full text-sm text-left min-w-[350px]">
+                            <thead class="bg-blue-50 text-gray-700 uppercase text-xs">
+                                <tr>
+                                    <th class="px-4 py-2">Date</th>
+                                    <th class="px-2 py-2">Supplier</th>
+                                    <th class="px-2 py-2">Item</th>
+                                    <th class="px-4 py-2 text-right">Amt</th>
+                                    <th class="px-2 py-2 text-center">x</th>
+                                </tr>
+                            </thead>
+                            <tbody id="purchaseTableBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
             <!-- SECTION 3: EXPENSES -->
             <div id="view-expense" class="tab-content hidden">
-                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-6">
+                <div class="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-200 mb-6">
                     <h2 class="text-lg font-bold text-gray-800 mb-4">Add Expense</h2>
-                    <div class="flex flex-col md:flex-row gap-4 items-end">
-                        <div class="flex-grow">
+                    <div class="grid grid-cols-1 gap-3">
+                        <div>
                             <label class="text-sm font-semibold text-gray-600">Reason</label>
-                            <input type="text" id="expReason" placeholder="Tea, Bill, etc." class="w-full p-2 border rounded">
+                            <input type="text" id="expReason" placeholder="Tea, Bill, etc." class="w-full p-2.5 border rounded-lg bg-gray-50">
                         </div>
-                        <div class="w-32">
-                            <label class="text-sm font-semibold text-gray-600">Amount (₹)</label>
-                            <input type="number" id="expAmount" placeholder="0" class="w-full p-2 border rounded">
+                        <div>
+                             <label class="text-sm font-semibold text-gray-600">Amount (₹)</label>
+                             <input type="number" id="expAmount" placeholder="0" class="w-full p-2.5 border rounded-lg bg-gray-50">
                         </div>
-                        <button onclick="addExpense()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded h-10">Save</button>
+                        <button onclick="addExpense()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg mt-2">Save Expense</button>
                     </div>
                 </div>
 
-                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                    <h3 class="font-bold text-gray-700 mb-2">Expense History</h3>
-                    <table class="w-full text-sm text-left">
-                        <thead class="bg-red-50 text-gray-700 uppercase text-xs">
-                            <tr>
-                                <th class="px-4 py-2">Date</th>
-                                <th class="px-4 py-2">Reason</th>
-                                <th class="px-4 py-2 text-right">Amount</th>
-                                <th class="px-4 py-2 text-center">Del</th>
-                            </tr>
-                        </thead>
-                        <tbody id="expenseTableBody"></tbody>
-                    </table>
+                <div class="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-200">
+                    <h3 class="font-bold text-gray-700 mb-2">Recent Expenses (Last 50)</h3>
+                    <div class="overflow-x-auto -mx-4 md:mx-0">
+                        <table class="w-full text-sm text-left min-w-[300px]">
+                            <thead class="bg-red-50 text-gray-700 uppercase text-xs">
+                                <tr>
+                                    <th class="px-4 py-2">Date</th>
+                                    <th class="px-2 py-2">Reason</th>
+                                    <th class="px-4 py-2 text-right">Amt</th>
+                                    <th class="px-2 py-2 text-center">x</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expenseTableBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
             <!-- SECTION 4: CA REPORT & DOWNLOAD -->
             <div id="view-report" class="tab-content hidden">
-                <div class="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+                <div class="bg-white p-4 md:p-8 rounded-xl shadow-lg border border-gray-200">
                     
-                    <!-- TIME FILTER BUTTONS -->
-                    <div class="flex flex-wrap justify-center md:justify-start gap-2 mb-6">
-                        <button onclick="setReportPeriod('today')" id="btn-today" class="period-btn px-4 py-2 rounded-full text-sm font-bold shadow-sm">
-                            📅 Today (आज)
+                    <!-- TIME FILTER BUTTONS (Scrollable on mobile) -->
+                    <div class="flex overflow-x-auto no-scrollbar gap-2 mb-6 pb-2 -mx-2 px-2 md:justify-start">
+                        <button onclick="setReportPeriod('today')" id="btn-today" class="period-btn px-4 py-2 rounded-full text-xs md:text-sm font-bold shadow-sm whitespace-nowrap flex-shrink-0">
+                            📅 Today
                         </button>
-                        <button onclick="setReportPeriod('month')" id="btn-month" class="period-btn active px-4 py-2 rounded-full text-sm font-bold shadow-sm">
-                            🗓️ This Month
+                        <button onclick="setReportPeriod('month')" id="btn-month" class="period-btn active px-4 py-2 rounded-full text-xs md:text-sm font-bold shadow-sm whitespace-nowrap flex-shrink-0">
+                            🗓️ Month
                         </button>
-                        <button onclick="setReportPeriod('year')" id="btn-year" class="period-btn px-4 py-2 rounded-full text-sm font-bold shadow-sm">
-                            📈 This Year
+                        <button onclick="setReportPeriod('year')" id="btn-year" class="period-btn px-4 py-2 rounded-full text-xs md:text-sm font-bold shadow-sm whitespace-nowrap flex-shrink-0">
+                            📈 Year
                         </button>
-                        <button onclick="setReportPeriod('all')" id="btn-all" class="period-btn px-4 py-2 rounded-full text-sm font-bold shadow-sm">
-                            ∞ All Time
+                        <button onclick="setReportPeriod('all')" id="btn-all" class="period-btn px-4 py-2 rounded-full text-xs md:text-sm font-bold shadow-sm whitespace-nowrap flex-shrink-0">
+                            ∞ All
                         </button>
                     </div>
 
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b pb-4 gap-4">
+                    <div class="flex flex-col gap-4 mb-6 border-b pb-4">
                         <div>
-                            <h2 class="text-2xl font-bold text-gray-800">Business Summary</h2>
+                            <h2 class="text-xl md:text-2xl font-bold text-gray-800">Business Summary</h2>
                             <p class="text-sm text-gray-500">Period: <span id="periodLabel" class="font-bold text-green-700">This Month</span></p>
                         </div>
-                        <div class="flex gap-2">
-                             <button onclick="shareSummary()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded font-bold shadow flex items-center gap-2 text-sm">
-                                📱 Share
+                        <div class="grid grid-cols-3 gap-2 w-full">
+                             <button onclick="shareSummary()" class="bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-bold shadow flex flex-col items-center justify-center text-xs">
+                                <span class="text-lg">📱</span> Share
                             </button>
-                            <button onclick="downloadHistoryCSV()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded font-bold shadow flex items-center gap-2 text-sm">
-                                📥 History
+                            <button onclick="downloadHistoryCSV()" class="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold shadow flex flex-col items-center justify-center text-xs">
+                                <span class="text-lg">📥</span> History
                             </button>
-                            <button onclick="downloadPDF()" class="bg-gray-800 hover:bg-black text-white px-3 py-2 rounded font-bold shadow flex items-center gap-2 text-sm">
-                                📄 Report
+                            <button onclick="downloadPDF()" class="bg-gray-800 hover:bg-black text-white py-3 rounded-lg font-bold shadow flex flex-col items-center justify-center text-xs">
+                                <span class="text-lg">📄</span> PDF
                             </button>
                         </div>
                     </div>
 
                     <!-- Summary Cards -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                        <div class="bg-green-50 p-4 rounded-lg border border-green-200 relative overflow-hidden">
-                            <div class="absolute right-0 top-0 p-4 opacity-10 text-6xl text-green-900">₹</div>
-                            <p class="text-sm text-green-600 font-semibold uppercase">Total Sales</p>
-                            <h3 class="text-2xl font-bold text-green-800">₹<span id="rptTotalSale">0</span></h3>
-                            <div class="text-xs text-green-600 mt-1">
-                                Cash: ₹<span id="rptCash">0</span> | Online: ₹<span id="rptOnline">0</span>
+                    <div class="grid grid-cols-1 gap-3 mb-6">
+                        <div class="bg-green-50 p-4 rounded-lg border border-green-200 relative overflow-hidden flex justify-between items-center">
+                            <div>
+                                <p class="text-xs text-green-600 font-semibold uppercase">Total Sales</p>
+                                <h3 class="text-2xl font-bold text-green-800">₹<span id="rptTotalSale">0</span></h3>
+                                <div class="text-[10px] text-green-600 mt-1">
+                                    Cash: <span id="rptCash">0</span> | Online: <span id="rptOnline">0</span>
+                                </div>
                             </div>
+                            <div class="text-4xl opacity-20">💰</div>
                         </div>
-                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 relative overflow-hidden">
-                             <div class="absolute right-0 top-0 p-4 opacity-10 text-6xl text-blue-900">📦</div>
-                            <p class="text-sm text-blue-600 font-semibold uppercase">Total Purchase</p>
-                            <h3 class="text-2xl font-bold text-blue-800">₹<span id="rptTotalPurch">0</span></h3>
-                        </div>
-                        <div class="bg-red-50 p-4 rounded-lg border border-red-200 relative overflow-hidden">
-                             <div class="absolute right-0 top-0 p-4 opacity-10 text-6xl text-red-900">📉</div>
-                            <p class="text-sm text-red-600 font-semibold uppercase">Total Expense</p>
-                            <h3 class="text-2xl font-bold text-red-800">₹<span id="rptTotalExp">0</span></h3>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                                <p class="text-[10px] text-blue-600 font-semibold uppercase">Purchase</p>
+                                <h3 class="text-lg font-bold text-blue-800">₹<span id="rptTotalPurch">0</span></h3>
+                            </div>
+                            <div class="bg-red-50 p-3 rounded-lg border border-red-200">
+                                <p class="text-[10px] text-red-600 font-semibold uppercase">Expense</p>
+                                <h3 class="text-lg font-bold text-red-800">₹<span id="rptTotalExp">0</span></h3>
+                            </div>
                         </div>
                     </div>
 
                     <div class="bg-gray-100 p-4 rounded-lg text-center border border-gray-300">
-                        <p class="text-sm text-gray-500 mb-1">Estimated Net Cash (Sales - Exp) for this period</p>
+                        <p class="text-xs text-gray-500 mb-1">Estimated Net Cash (Sales - Exp)</p>
                         <h2 class="text-3xl font-bold text-gray-800">₹<span id="rptNet">0</span></h2>
                     </div>
                 </div>
@@ -302,8 +329,8 @@
         // --- SECURITY / LOGIN LOGIC ---
         function attemptLogin() {
             const pass = document.getElementById('loginPass').value;
-            // HARDCODED PASSWORD AS REQUESTED
-            if(pass === 'niku9828') {
+            // UPDATE: Made comparison case-insensitive and trimmed whitespace for better mobile experience
+            if(pass && pass.toLowerCase().trim() === 'niku9828') {
                 document.getElementById('loginOverlay').style.display = 'none';
                 sessionStorage.setItem('isLoggedIn', 'true');
             } else {
@@ -320,31 +347,103 @@
             document.getElementById('loginMsg').style.display = 'none';
         }
 
-        // Check login on load (Simple session check)
-        window.onload = function() {
+        // --- INDEXED DB SETUP (For Large Storage) ---
+        const DB_NAME = 'SJS_Manager_DB';
+        const DB_VERSION = 1;
+        let db;
+        
+        // Arrays to hold data in memory (for calculation speed)
+        let sales = [];
+        let purchases = [];
+        let expenses = [];
+        let currentPeriod = 'month';
+
+        // 1. Initialize DB
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                
+                request.onerror = (event) => {
+                    console.error("Database error: " + event.target.errorCode);
+                    reject("DB Error");
+                };
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('sales')) db.createObjectStore('sales', { keyPath: 'id' });
+                    if (!db.objectStoreNames.contains('purchases')) db.createObjectStore('purchases', { keyPath: 'id' });
+                    if (!db.objectStoreNames.contains('expenses')) db.createObjectStore('expenses', { keyPath: 'id' });
+                };
+
+                request.onsuccess = (event) => {
+                    db = event.target.result;
+                    resolve(db);
+                };
+            });
+        }
+
+        // 2. Load All Data to Memory (Optimized)
+        async function loadAllData() {
+            document.getElementById('loadingData').classList.remove('hidden');
+            
+            try {
+                sales = await getAllFromStore('sales');
+                // Sort descending (newest first)
+                sales.sort((a, b) => b.id - a.id);
+                
+                purchases = await getAllFromStore('purchases');
+                purchases.sort((a, b) => b.id - a.id);
+                
+                expenses = await getAllFromStore('expenses');
+                expenses.sort((a, b) => b.id - a.id);
+                
+                renderAll();
+                document.getElementById('loadingData').classList.add('hidden');
+            } catch (err) {
+                alert("Error loading data: " + err);
+            }
+        }
+
+        // DB Helper: Get All
+        function getAllFromStore(storeName) {
+            return new Promise((resolve) => {
+                const tx = db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result || []);
+            });
+        }
+
+        // DB Helper: Add Item
+        function addToDB(storeName, item) {
+            const tx = db.transaction(storeName, 'readwrite');
+            tx.objectStore(storeName).add(item);
+        }
+
+        // DB Helper: Delete Item
+        function deleteFromDB(storeName, id) {
+            const tx = db.transaction(storeName, 'readwrite');
+            tx.objectStore(storeName).delete(id);
+        }
+
+        // --- APP INITIALIZATION ---
+        window.onload = async function() {
+            // Security Check
             if(sessionStorage.getItem('isLoggedIn') === 'true') {
                 document.getElementById('loginOverlay').style.display = 'none';
             }
-            renderAll();
-            
-            // Allow Enter key for login
             document.getElementById('loginPass').addEventListener('keypress', function (e) {
                 if (e.key === 'Enter') attemptLogin();
             });
+
+            // DB Init
+            try {
+                await initDB();
+                await loadAllData();
+            } catch(e) {
+                alert("Database Init Failed. Please use a modern browser.");
+            }
         };
-
-        // --- DATA MANAGEMENT ---
-        let sales = JSON.parse(localStorage.getItem('kd_sales')) || [];
-        let purchases = JSON.parse(localStorage.getItem('kd_purchases')) || [];
-        let expenses = JSON.parse(localStorage.getItem('kd_expenses')) || [];
-        let currentPeriod = 'month'; // default
-
-        function saveData() {
-            localStorage.setItem('kd_sales', JSON.stringify(sales));
-            localStorage.setItem('kd_purchases', JSON.stringify(purchases));
-            localStorage.setItem('kd_expenses', JSON.stringify(expenses));
-            renderAll();
-        }
 
         // --- TABS LOGIC ---
         function showTab(tabName) {
@@ -361,23 +460,16 @@
             activeBtn.classList.remove('text-white/80');
             
             if(tabName === 'report') generateReport();
-            if(tabName === 'sell') renderSales();
-            if(tabName === 'purchase') renderPurchases();
-            if(tabName === 'expense') renderExpenses();
+            // No need to re-render others, already in memory
         }
 
         // --- REPORT PERIOD LOGIC ---
         function setReportPeriod(period) {
             currentPeriod = period;
-            
-            // Update UI buttons
             document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById('btn-' + period).classList.add('active');
-
-            // Update Label
-            const labels = { 'today': 'Today (आज)', 'month': 'This Month (इस महीने)', 'year': 'This Year (इस साल)', 'all': 'All Time (अब तक)' };
+            const labels = { 'today': 'Today', 'month': 'This Month', 'year': 'This Year', 'all': 'All Time' };
             document.getElementById('periodLabel').innerText = labels[period];
-
             generateReport();
         }
 
@@ -389,41 +481,60 @@
             const customer = document.getElementById('saleCustomer').value || 'Walk-in';
 
             if (item && amount) {
-                sales.unshift({ id: Date.now(), date: new Date().toISOString(), item, amount, mode, customer });
+                const newItem = { id: Date.now(), date: new Date().toISOString(), item, amount, mode, customer };
+                // Update Memory
+                sales.unshift(newItem); 
+                // Update DB (Async)
+                addToDB('sales', newItem);
+                
                 document.getElementById('saleItem').value = '';
                 document.getElementById('saleAmount').value = '';
                 document.getElementById('saleCustomer').value = '';
-                saveData();
+                
                 renderSales();
             } else {
                 alert("Please enter Item and Price");
             }
         }
 
-        function deleteSale(id) { if(confirm("Delete?")) { sales = sales.filter(s => s.id !== id); saveData(); }}
+        function deleteSale(id) { 
+            if(confirm("Delete?")) { 
+                sales = sales.filter(s => s.id !== id); 
+                deleteFromDB('sales', id);
+                renderSales(); 
+            }
+        }
 
         function renderSales() {
             const tbody = document.getElementById('salesTableBody');
             tbody.innerHTML = '';
+            
             const todayStr = new Date().toDateString();
             let todaySum = 0;
-
+            
+            // Calculate Today's Sum from ALL Data
             sales.forEach(s => {
+                if(new Date(s.date).toDateString() === todayStr && s.mode !== 'Udhaar') todaySum += s.amount;
+            });
+            document.getElementById('todayTotal').innerText = todaySum;
+
+            // Render ONLY top 50 items to prevent lag
+            const displayList = sales.slice(0, 50);
+
+            displayList.forEach(s => {
                 const d = new Date(s.date);
                 const isToday = d.toDateString() === todayStr;
-                if(isToday && s.mode !== 'Udhaar') todaySum += s.amount;
                 tbody.innerHTML += `
                     <tr class="border-b hover:bg-gray-50 ${isToday ? 'bg-green-50/50' : ''}">
                         <td class="px-4 py-3 font-medium">
                             <div class="text-gray-900">${s.item}</div>
                             <div class="text-xs text-gray-500">${d.toLocaleDateString()}</div>
                         </td>
-                        <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-bold ${s.mode==='Cash'?'bg-green-100 text-green-800':s.mode==='UPI'?'bg-blue-100 text-blue-800':'bg-yellow-100 text-yellow-800'}">${s.mode}</span></td>
-                        <td class="px-4 py-3 text-right font-bold">₹${s.amount}</td>
-                        <td class="px-4 py-3 text-center"><button onclick="deleteSale(${s.id})" class="text-red-500 font-bold">×</button></td>
+                        <td class="px-2 py-3"><span class="px-2 py-1 rounded text-xs font-bold ${s.mode==='Cash'?'bg-green-100 text-green-800':s.mode==='UPI'?'bg-blue-100 text-blue-800':'bg-yellow-100 text-yellow-800'}">${s.mode}</span></td>
+                        <td class="px-4 py-3 text-right font-bold text-gray-800">₹${s.amount}</td>
+                        <td class="px-2 py-3 text-center"><button onclick="deleteSale(${s.id})" class="text-red-500 font-bold p-2">×</button></td>
                     </tr>`;
             });
-            document.getElementById('todayTotal').innerText = todaySum;
             document.getElementById('noSalesMsg').style.display = sales.length ? 'none' : 'block';
         }
 
@@ -433,37 +544,61 @@
             const item = document.getElementById('purchItem').value;
             const amount = parseFloat(document.getElementById('purchAmount').value);
             if(supplier && amount) {
-                purchases.unshift({ id: Date.now(), date: new Date().toISOString(), supplier, item, amount });
+                const newItem = { id: Date.now(), date: new Date().toISOString(), supplier, item, amount };
+                purchases.unshift(newItem);
+                addToDB('purchases', newItem);
+                
                 document.getElementById('purchSupplier').value = ''; document.getElementById('purchItem').value = ''; document.getElementById('purchAmount').value = '';
-                saveData();
+                renderPurchases();
             }
         }
-        function deletePurchase(id) { purchases = purchases.filter(p => p.id !== id); saveData(); }
+        function deletePurchase(id) { 
+            purchases = purchases.filter(p => p.id !== id); 
+            deleteFromDB('purchases', id);
+            renderPurchases(); 
+        }
         function renderPurchases() {
-            document.getElementById('purchaseTableBody').innerHTML = purchases.map(p => `
-                <tr class="border-b"><td class="px-4 py-2 text-xs">${new Date(p.date).toLocaleDateString()}</td><td class="px-4 py-2 font-medium">${p.supplier}</td><td class="px-4 py-2">${p.item}</td><td class="px-4 py-2 text-right">₹${p.amount}</td><td class="px-4 py-2 text-center"><button onclick="deletePurchase(${p.id})" class="text-red-500">×</button></td></tr>`).join('');
+            // Only show last 50
+            const displayList = purchases.slice(0, 50);
+            document.getElementById('purchaseTableBody').innerHTML = displayList.map(p => `
+                <tr class="border-b"><td class="px-4 py-2 text-xs">${new Date(p.date).toLocaleDateString()}</td><td class="px-2 py-2 font-medium">${p.supplier}</td><td class="px-2 py-2 text-xs">${p.item}</td><td class="px-4 py-2 text-right">₹${p.amount}</td><td class="px-2 py-2 text-center"><button onclick="deletePurchase(${p.id})" class="text-red-500 p-2">×</button></td></tr>`).join('');
         }
 
         function addExpense() {
             const reason = document.getElementById('expReason').value;
             const amount = parseFloat(document.getElementById('expAmount').value);
             if(reason && amount) {
-                expenses.unshift({ id: Date.now(), date: new Date().toISOString(), reason, amount });
+                const newItem = { id: Date.now(), date: new Date().toISOString(), reason, amount };
+                expenses.unshift(newItem);
+                addToDB('expenses', newItem);
+
                 document.getElementById('expReason').value = ''; document.getElementById('expAmount').value = '';
-                saveData();
+                renderExpenses();
             }
         }
-        function deleteExpense(id) { expenses = expenses.filter(e => e.id !== id); saveData(); }
+        function deleteExpense(id) { 
+            expenses = expenses.filter(e => e.id !== id); 
+            deleteFromDB('expenses', id);
+            renderExpenses(); 
+        }
         function renderExpenses() {
-            document.getElementById('expenseTableBody').innerHTML = expenses.map(e => `
-                <tr class="border-b"><td class="px-4 py-2 text-xs">${new Date(e.date).toLocaleDateString()}</td><td class="px-4 py-2 font-medium">${e.reason}</td><td class="px-4 py-2 text-right">₹${e.amount}</td><td class="px-4 py-2 text-center"><button onclick="deleteExpense(${e.id})" class="text-red-500">×</button></td></tr>`).join('');
+            // Only show last 50
+            const displayList = expenses.slice(0, 50);
+            document.getElementById('expenseTableBody').innerHTML = displayList.map(e => `
+                <tr class="border-b"><td class="px-4 py-2 text-xs">${new Date(e.date).toLocaleDateString()}</td><td class="px-2 py-2 font-medium">${e.reason}</td><td class="px-4 py-2 text-right">₹${e.amount}</td><td class="px-2 py-2 text-center"><button onclick="deleteExpense(${e.id})" class="text-red-500 p-2">×</button></td></tr>`).join('');
+        }
+
+        function renderAll() {
+            renderSales();
+            renderPurchases();
+            renderExpenses();
+            generateReport();
         }
 
         // --- REPORT & DOWNLOADS ---
         function generateReport() {
             const now = new Date();
             
-            // Filter Function based on Period
             const filterByPeriod = (dateStr) => {
                 const d = new Date(dateStr);
                 if (currentPeriod === 'all') return true;
@@ -494,7 +629,7 @@
             document.getElementById('rptNet').innerText = (cashTotal + upiTotal - totalExp);
         }
 
-        // 1. Download as CSV (Excel compatible)
+        // 1. Download as CSV
         function downloadHistoryCSV() {
             let csv = "TYPE,DATE,ITEM/REASON,AMOUNT,MODE/SUPPLIER,CUSTOMER\n";
             sales.forEach(s => { csv += `Sale,${new Date(s.date).toLocaleDateString()},${s.item},${s.amount},${s.mode},${s.customer}\n`; });
@@ -505,7 +640,7 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = "SJS_History_Full.csv";
+            a.download = "SJS_Full_History.csv";
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -545,8 +680,6 @@
             });
             doc.save("SJS_Report.pdf");
         }
-
-        renderAll();
     </script>
 </body>
 </html>
