@@ -1,482 +1,468 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candy Crush - Talha</title>
-    <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700&display=swap" rel="stylesheet">
+    <title>SJS Showroom | Professional Catalogue</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
     <style>
-        :root {
-            --bg-color: #fce4ec;
-            --panel-color: rgba(255, 255, 255, 0.85);
-            --accent-color: #ff4081;
-            --gradient-1: #ff9a9e;
-            --gradient-2: #fad0c4;
-            --gradient-3: #a1c4fd;
-            --gradient-4: #c2e9fb;
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@300;400;500;600&display=swap');
+        :root { --gold: #B8860B; --cream: #FFFAF0; --dark: #2D2424; }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--cream); color: var(--dark); margin: 0; scroll-behavior: smooth; }
+        .brand-font { font-family: 'Playfair Display', serif; }
+        .hero-gradient { background: linear-gradient(135deg, #ffffff 0%, #f3e5ab 100%); }
+        
+        .product-card { 
+            background: white; border-radius: 1.5rem; border: 1px solid rgba(184,134,11,0.1); 
+            overflow: hidden; position: relative; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); cursor: pointer;
         }
-
-        body {
-            /* Animated Colorful Background */
-            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
-            background-size: 400% 400%;
-            animation: gradientAnimation 15s ease infinite;
-            
-            /* Pattern Overlay for texture */
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            font-family: 'Montserrat', sans-serif;
-            overflow: hidden;
-            touch-action: none;
+        .product-card:hover { transform: translateY(-8px); box-shadow: 0 20px 25px rgba(0, 0, 0, 0.1); }
+        
+        .nav-active { color: var(--gold); border-bottom: 3px solid var(--gold); font-weight: 700; }
+        .modal-overlay { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); z-index: 9999; }
+        
+        .admin-only { display: none !important; }
+        body.admin-active .admin-only { display: block !important; }
+        
+        .delete-btn { 
+            display: none !important; position: absolute; top: 12px; left: 12px; z-index: 50; 
+            background: #ef4444; color: white; width: 35px; height: 35px; 
+            border-radius: 50%; align-items: center; justify-content: center; 
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4); border: 2px solid white;
+            transition: 0.3s;
         }
+        .delete-btn:hover { transform: scale(1.15); background: #b91c1c; }
+        body.admin-active .delete-btn { display: flex !important; }
 
-        body::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-image: radial-gradient(rgba(255,255,255,0.2) 2px, transparent 2px);
-            background-size: 30px 30px;
-            pointer-events: none;
+        .action-btn {
+            width: 38px; height: 38px; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px);
+            transition: all 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
+        .action-btn:active { transform: scale(0.9); }
+        .action-btn:hover { transform: scale(1.1); }
 
-        @keyframes gradientAnimation {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        /* Mode Selection Screen */
-        #modeSelection {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.6);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-            backdrop-filter: blur(8px);
-        }
-
-        .menu-card {
-            background: white;
-            padding: 2.5rem;
-            border-radius: 30px;
-            text-align: center;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.4);
-            border: 4px solid var(--accent-color);
-        }
-
-        .menu-card h2 {
-            margin-bottom: 1.5rem;
-            color: #333;
-            font-size: 2rem;
-            background: linear-gradient(45deg, #ff4081, #7c4dff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .menu-card button {
-            display: block;
-            width: 220px;
-            margin: 15px auto;
-            padding: 14px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            background: linear-gradient(45deg, var(--accent-color), #7c4dff);
-            border: none;
-            border-radius: 50px;
-            color: white;
-            transition: all 0.3s ease;
-            box-shadow: 0 5px 15px rgba(255, 64, 129, 0.4);
-        }
-
-        .menu-card button:hover {
-            transform: translateY(-3px) scale(1.05);
-            box-shadow: 0 8px 20px rgba(255, 64, 129, 0.6);
-        }
-
-        /* Main Game Container */
-        .game-container {
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
-            max-width: 100vw;
-            z-index: 10;
-        }
-
-        .ui-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            max-width: 560px;
-            background: var(--panel-color);
-            padding: 15px 25px;
-            border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(255,255,255,0.3);
-        }
-
-        .score-box h3 { margin: 0; font-size: 0.9rem; text-transform: uppercase; color: #666; font-weight: 700; }
-        .score-box h1 { margin: 0; font-size: 1.8rem; color: var(--accent-color); text-shadow: 1px 1px 0px rgba(0,0,0,0.05); }
-
-        #timer { font-weight: 700; color: #ff5252; font-size: 1.2rem; background: rgba(255,0,0,0.1); padding: 5px 12px; border-radius: 10px; }
-
-        #changeMode {
-            padding: 10px 18px;
-            background: #333;
-            color: white;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background 0.2s;
-        }
-        #changeMode:hover { background: #000; }
-
-        /* Grid Styling */
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            width: 92vw;
-            height: 92vw;
-            max-width: 540px;
-            max-height: 540px;
-            background-color: rgba(255, 255, 255, 0.2);
-            padding: 12px;
-            border-radius: 24px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2), inset 0 0 20px rgba(255,255,255,0.3);
-            gap: 6px;
-            border: 2px solid rgba(255,255,255,0.4);
-            backdrop-filter: blur(2px);
-        }
-
-        .grid div {
-            aspect-ratio: 1 / 1;
-            background-size: 88%;
-            background-repeat: no-repeat;
-            background-position: center;
-            border-radius: 12px;
-            cursor: grab;
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            background-color: rgba(255, 255, 255, 0.3);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        .grid div:hover {
-            background-color: rgba(255, 255, 255, 0.5);
-            transform: scale(1.02);
-        }
-
-        .grid div:active {
-            cursor: grabbing;
-            transform: scale(1.15);
-            z-index: 10;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-        }
-
-        /* Message Box */
-        #messageBox {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 40px;
-            border-radius: 30px;
-            text-align: center;
-            z-index: 200;
-            box-shadow: 0 0 100px rgba(0,0,0,0.5);
-            border: 5px solid var(--accent-color);
-        }
-
-        @media (max-width: 600px) {
-            .ui-top { width: 85%; padding: 10px 15px; }
-            .grid { padding: 8px; gap: 4px; border-radius: 15px; }
-            .menu-card { width: 80%; padding: 1.5rem; }
-        }
+        .loader-spin { border: 3px solid #f3f3f3; border-top: 3px solid var(--gold); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .custom-alert { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 10000; padding: 14px 28px; border-radius: 1rem; color: white; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,0.3); transition: 0.4s; opacity: 0; pointer-events: none; text-align: center; }
+        .custom-alert.show { opacity: 1; pointer-events: auto; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
-<body>
+<body class="overflow-x-hidden">
 
-    <!-- Mode Selection -->
-    <div id="modeSelection">
-        <div class="menu-card">
-            <h2>Candy Mania</h2>
-            <button id="endlessMode">Play Endless</button>
-            <button id="timedMode">Timed Challenge</button>
-        </div>
-    </div>
+    <div id="toast" class="custom-alert bg-gray-900"></div>
 
-    <!-- Game Elements -->
-    <div class="game-container">
-        <div class="ui-top">
-            <div class="score-box">
-                <h3>Score</h3>
-                <h1 id="score">0</h1>
+    <header class="hero-gradient shadow-sm border-b border-yellow-100">
+        <div class="max-w-7xl mx-auto px-6 py-10 flex flex-col items-center text-center">
+            <div class="mb-4 p-6 bg-white rounded-full shadow-2xl inline-block border-2 border-yellow-50 relative">
+                <i class="fas fa-crown text-6xl text-[#B8860B]"></i>
             </div>
-            <div id="timer">READY</div>
-            <button id="changeMode">Menu</button>
+            <h1 class="brand-font text-4xl md:text-5xl text-gray-800 font-bold uppercase tracking-tighter">Shree Jagadamba</h1>
+            <p class="brand-font text-xl md:text-2xl text-[#B8860B] tracking-[0.5em] font-semibold mt-1 uppercase">Selection</p>
+            <p class="text-[10px] mt-4 text-gray-400 font-bold uppercase tracking-widest italic text-center">Anavatti, Shivamogga • Karnataka</p>
         </div>
-        <div class="grid"></div>
+        
+        <nav class="bg-white/95 sticky top-0 z-50 border-b border-gray-100 overflow-x-auto no-scrollbar shadow-sm">
+            <div class="max-w-7xl mx-auto flex justify-center space-x-6 md:space-x-8 py-5 px-6 whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.15em]">
+                <a id="cat-All" href="javascript:void(0)" onclick="window.filterCategory('All', this)" class="nav-active py-1">All</a>
+                <a id="cat-Saree" href="javascript:void(0)" onclick="window.filterCategory('Saree', this)" class="text-gray-400 py-1">Sarees</a>
+                <a id="cat-Kurti" href="javascript:void(0)" onclick="window.filterCategory('Kurti', this)" class="text-gray-400 py-1">Kurtis</a>
+                <a id="cat-Mens" href="javascript:void(0)" onclick="window.filterCategory('Mens Wear', this)" class="text-gray-400 py-1">Mens</a>
+                <a id="cat-Other" href="javascript:void(0)" onclick="window.filterCategory('Other', this)" class="text-gray-400 py-1">Other</a>
+                <!-- Liked Tab -->
+                <a id="cat-Liked" href="javascript:void(0)" onclick="window.filterCategory('Liked', this)" class="text-red-500 py-1 flex items-center gap-2">
+                    <i class="fas fa-heart"></i> Saved
+                </a>
+            </div>
+        </nav>
+    </header>
+
+    <div class="bg-red-600 py-3 text-center shadow-lg relative z-20">
+        <p class="text-[10px] md:text-xs text-white font-black uppercase tracking-[0.2em]">
+            ⚠️ VISIT OUR STORE TO PURCHASE • NO ONLINE DELIVERY
+        </p>
     </div>
 
-    <!-- Custom Alert -->
-    <div id="messageBox">
-        <h2 id="msgTitle" style="color: var(--accent-color); margin-top:0;">Game Over!</h2>
-        <p id="msgText" style="font-size: 1.2rem; margin-bottom: 25px;">Final Score: 0</p>
-        <button onclick="location.reload()" style="padding: 12px 30px; background: #333; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; font-size: 1rem;">Back to Menu</button>
+    <!-- Owner Dashboard -->
+    <section id="adminPanel" class="admin-only max-w-6xl mx-auto mt-8 p-8 bg-white rounded-[2.5rem] shadow-2xl border-2 border-yellow-400 mx-4 lg:mx-auto">
+        <div class="flex justify-between items-center mb-8 border-b pb-6">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-yellow-50 rounded-xl flex items-center justify-center text-[#B8860B] shadow-inner"><i class="fas fa-magic text-xl"></i></div>
+                <h2 class="brand-font text-2xl font-bold text-gray-800 uppercase">Dukaan Dashboard</h2>
+            </div>
+            <button onclick="window.logoutManual()" class="text-red-500 font-bold text-[10px] uppercase tracking-widest border border-red-100 px-4 py-2 rounded-lg hover:bg-red-50">Logout</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="md:col-span-1">
+                <input type="file" id="imgInp" class="hidden" accept="image/*" onchange="window.handleFileSelect(this)">
+                <label for="imgInp" id="lTag" class="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl p-6 cursor-pointer bg-gray-50 text-[10px] font-bold text-gray-400 uppercase text-center h-full min-h-[120px] hover:bg-yellow-50 transition-all">
+                    <i class="fas fa-camera text-3xl mb-2 text-yellow-600"></i>
+                    <span>Photo Chuno</span>
+                </label>
+            </div>
+            <div class="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" id="itemName" placeholder="Saree/Kurti Ka Naam" class="w-full bg-gray-50 border p-4 rounded-xl outline-none focus:ring-2 focus:ring-yellow-500 font-medium">
+                <input type="number" id="itemPrice" placeholder="Price (₹)" class="w-full bg-gray-50 border p-4 rounded-xl outline-none focus:ring-2 focus:ring-yellow-500 font-bold text-yellow-700">
+                <select id="itemCat" class="w-full bg-gray-50 border p-4 rounded-xl text-sm font-bold text-gray-600 outline-none">
+                    <option value="Saree">Saree</option>
+                    <option value="Kurti">Kurti</option>
+                    <option value="Mens Wear">Mens Wear</option>
+                    <option value="Other">Other</option>
+                </select>
+                <button id="uploadBtn" onclick="window.addItem()" class="w-full bg-[#B8860B] hover:bg-black text-white font-bold rounded-xl uppercase text-xs shadow-lg active:scale-95 transition-all py-4">Upload Karein</button>
+            </div>
+        </div>
+    </section>
+
+    <main class="max-w-7xl mx-auto px-4 py-16">
+        <div id="loadingStatus" class="flex flex-col items-center justify-center py-24 text-gray-400 text-center">
+            <div class="loader-spin mb-4"></div><p id="loadingMsg" class="text-[11px] uppercase tracking-widest text-gray-600">Connecting to SJS Database...</p>
+        </div>
+        
+        <!-- Product Grid -->
+        <div id="pGrid" class="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-10"></div>
+        
+        <div id="noData" class="hidden flex flex-col items-center justify-center py-20 text-gray-300">
+            <i class="fas fa-heart-broken text-5xl mb-4"></i>
+            <p id="noDataText" class="text-xs uppercase font-bold tracking-widest">Abhi Stock Khali Hai</p>
+        </div>
+    </main>
+
+    <footer class="py-16 text-center border-t border-yellow-50 bg-white">
+        <p class="brand-font text-2xl font-bold text-gray-800 mb-6 tracking-tight">Shree Jagadamba Selection</p>
+        <button onclick="window.openLogin()" class="text-[11px] text-gray-400 uppercase tracking-[0.2em] font-bold border border-gray-100 px-10 py-4 rounded-full hover:bg-black hover:text-white transition-all shadow-sm">Owner Login</button>
+    </footer>
+
+    <!-- Modals -->
+    <div id="dModal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-6 text-center z-[10001]">
+        <div class="bg-white rounded-[2.5rem] p-10 max-w-sm w-full shadow-2xl">
+            <h2 class="brand-font text-xl font-bold mb-4 uppercase text-gray-800">Hatao Item?</h2>
+            <div class="flex gap-4 mt-6">
+                <button onclick="window.closeDeleteModal()" class="flex-1 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest rounded-xl hover:bg-gray-50">Nahi</button>
+                <button id="confirmDeleteBtn" class="flex-1 py-4 bg-red-500 text-white rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg active:scale-95">Haan</button>
+            </div>
+        </div>
     </div>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            const grid = document.querySelector(".grid");
-            const scoreDisplay = document.getElementById("score");
-            const timerDisplay = document.getElementById("timer");
-            const modeSelection = document.getElementById("modeSelection");
-            const gameContainer = document.querySelector(".game-container");
-            const endlessButton = document.getElementById("endlessMode");
-            const timedButton = document.getElementById("timedMode");
-            const changeModeButton = document.getElementById("changeMode");
-            const messageBox = document.getElementById("messageBox");
+    <div id="lModal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-6 text-center">
+        <div class="bg-white rounded-[3rem] p-12 max-w-sm w-full shadow-2xl relative">
+            <button onclick="window.closeLogin()" class="absolute top-6 right-8 text-gray-300 hover:text-gray-800"><i class="fas fa-times"></i></button>
+            <h2 class="brand-font text-2xl font-bold mb-8 uppercase text-gray-800 tracking-tight">Admin Access</h2>
+            <input type="password" id="pInput" placeholder="PIN Daalein" class="w-full p-5 bg-gray-50 border rounded-2xl text-center font-bold tracking-[0.6em] text-2xl outline-none mb-8 focus:ring-2 focus:ring-yellow-500">
+            <button onclick="window.verifyAdmin()" class="w-full py-5 bg-[#B8860B] text-white rounded-2xl text-xs font-bold uppercase tracking-widest shadow-xl hover:bg-black transition-all">Unlock Store</button>
+        </div>
+    </div>
 
-            const width = 8;
-            const squares = [];
-            let score = 0;
-            let currentMode = null;
-            let timeLeft = 0;
-            let gameInterval = null;
-            let timerInterval = null;
+    <div id="vModal" class="hidden fixed inset-0 modal-overlay flex flex-col items-center justify-center p-4 z-[9999]" onclick="window.closeFullImage()">
+        <img id="lImg" src="" class="rounded-3xl shadow-2xl mb-6 max-h-[85vh] w-auto object-contain border-4 border-white/10" onclick="event.stopPropagation()">
+        <p id="lName" class="text-white font-bold uppercase tracking-[0.2em] text-lg bg-black/30 px-6 py-2 rounded-full backdrop-blur-sm"></p>
+    </div>
 
-            const candyColors = [
-                "url(https://raw.githubusercontent.com/arpit456jain/Amazing-Js-Projects/master/Candy%20Crush/utils/red-candy.png)",
-                "url(https://raw.githubusercontent.com/arpit456jain/Amazing-Js-Projects/master/Candy%20Crush/utils/yellow-candy.png)",
-                "url(https://raw.githubusercontent.com/arpit456jain/Amazing-Js-Projects/master/Candy%20Crush/utils/orange-candy.png)",
-                "url(https://raw.githubusercontent.com/arpit456jain/Amazing-Js-Projects/master/Candy%20Crush/utils/green-candy.png)",
-                "url(https://raw.githubusercontent.com/arpit456jain/Amazing-Js-Projects/master/Candy%20Crush/utils/blue-candy.png)",
-                "url(https://raw.githubusercontent.com/arpit456jain/Amazing-Js-Projects/master/Candy%20Crush/utils/purple-candy.png)",
-            ];
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-            function createBoard() {
-                grid.innerHTML = "";
-                squares.length = 0;
-                for (let i = 0; i < width * width; i++) {
-                    const square = document.createElement("div");
-                    square.setAttribute("draggable", true);
-                    square.setAttribute("id", i);
-                    let randomColor = Math.floor(Math.random() * candyColors.length);
-                    square.style.backgroundImage = candyColors[randomColor];
-                    grid.appendChild(square);
-                    squares.push(square);
+        const firebaseConfig = {
+            apiKey: "AIzaSyBLlLFFbzRzB4oE-LT4QxbUmukO6SVRJ4I",
+            authDomain: "my-side-11eef.firebaseapp.com",
+            projectId: "my-side-11eef",
+            storageBucket: "my-side-11eef.firebasestorage.app",
+            messagingSenderId: "85450849605",
+            appId: "1:85450849605:web:870172cbece91b6960922c",
+            measurementId: "G-N2H0VT2XXJ"
+        };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'shree-jagadamba-v21';
 
-                    square.addEventListener("dragstart", dragStart);
-                    square.addEventListener("dragover", e => e.preventDefault());
-                    square.addEventListener("drop", dragDrop);
-                    
-                    square.addEventListener("touchstart", touchStart, { passive: false });
-                    square.addEventListener("touchmove", touchMove, { passive: false });
-                    square.addEventListener("touchend", touchEnd, { passive: false });
-                }
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        window.activeCat = 'All';
+        
+        // --- Safely Load Liked Items ---
+        try {
+            window.likedItems = new Set(JSON.parse(localStorage.getItem('sjs_liked_items') || '[]'));
+        } catch (e) {
+            window.likedItems = new Set();
+            localStorage.setItem('sjs_liked_items', '[]');
+        }
+
+        const showToast = (msg, isError = false) => {
+            const t = document.getElementById('toast');
+            if(!t) return;
+            t.innerText = msg;
+            t.style.backgroundColor = isError ? '#ef4444' : '#111827';
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 4000);
+        };
+
+        // --- Optimized Like & Share ---
+        window.toggleLike = function(id, e) {
+            e.stopPropagation();
+            
+            const btn = document.getElementById(`like-btn-${id}`);
+            if(!btn) return;
+            const icon = btn.querySelector('i');
+            
+            if (window.likedItems.has(id)) {
+                window.likedItems.delete(id);
+                icon.className = 'far fa-heart text-gray-400 text-lg transition-all duration-300';
+                showToast("Removed from Saved Items");
+                if(window.activeCat === 'Liked') loadData(); // Instant Refresh
+            } else {
+                window.likedItems.add(id);
+                icon.className = 'fas fa-heart text-red-500 text-lg transition-all duration-300 animate-bounce';
+                showToast("Added to Saved Items ❤️");
             }
+            
+            localStorage.setItem('sjs_liked_items', JSON.stringify([...window.likedItems]));
+        };
 
-            let colorBeingDragged, colorBeingReplaced, squareIdBeingDragged, squareIdBeingReplaced;
+        window.shareItem = async function(encName, price, imgUrl, e) {
+            e.stopPropagation();
+            const name = decodeURIComponent(encName);
+            
+            const shareData = {
+                title: 'Shree Jagadamba Selection',
+                text: `Check out this ${name} for ₹${price}!\nAvailable at Shree Jagadamba Selection, Anavatti.`,
+                url: window.location.href
+            };
 
-            function dragStart() {
-                colorBeingDragged = this.style.backgroundImage;
-                squareIdBeingDragged = parseInt(this.id);
-            }
-
-            function dragDrop() {
-                colorBeingReplaced = this.style.backgroundImage;
-                squareIdBeingReplaced = parseInt(this.id);
-                
-                const validMoves = [
-                    squareIdBeingDragged - 1,
-                    squareIdBeingDragged - width,
-                    squareIdBeingDragged + 1,
-                    squareIdBeingDragged + width
-                ];
-
-                if (validMoves.includes(squareIdBeingReplaced)) {
-                    squares[squareIdBeingDragged].style.backgroundImage = colorBeingReplaced;
-                    squares[squareIdBeingReplaced].style.backgroundImage = colorBeingDragged;
-                    
-                    if (!checkImmediateMatches()) {
-                        setTimeout(() => {
-                            squares[squareIdBeingDragged].style.backgroundImage = colorBeingDragged;
-                            squares[squareIdBeingReplaced].style.backgroundImage = colorBeingReplaced;
-                        }, 250);
-                    }
-                }
-            }
-
-            let touchStartX, touchStartY;
-            function touchStart(e) {
-                e.preventDefault();
-                touchStartX = e.touches[0].clientX;
-                touchStartY = e.touches[0].clientY;
-                squareIdBeingDragged = parseInt(this.id);
-                colorBeingDragged = this.style.backgroundImage;
-            }
-
-            function touchMove(e) { e.preventDefault(); }
-
-            function touchEnd(e) {
-                e.preventDefault();
-                let touchEndX = e.changedTouches[0].clientX;
-                let touchEndY = e.changedTouches[0].clientY;
-                let dx = touchEndX - touchStartX;
-                let dy = touchEndY - touchStartY;
-                if (Math.abs(dx) < 15 && Math.abs(dy) < 15) return;
-
-                let direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
-                let targetId = direction === "right" ? squareIdBeingDragged + 1 :
-                               direction === "left" ? squareIdBeingDragged - 1 :
-                               direction === "up" ? squareIdBeingDragged - width : squareIdBeingDragged + width;
-
-                if (targetId >= 0 && targetId < 64) {
-                    if ((direction === "right" && targetId % width === 0) || (direction === "left" && (targetId + 1) % width === 0)) return;
-                    
-                    squareIdBeingReplaced = targetId;
-                    colorBeingReplaced = squares[targetId].style.backgroundImage;
-                    squares[squareIdBeingDragged].style.backgroundImage = colorBeingReplaced;
-                    squares[squareIdBeingReplaced].style.backgroundImage = colorBeingDragged;
-
-                    if (!checkImmediateMatches()) {
-                        setTimeout(() => {
-                            squares[squareIdBeingDragged].style.backgroundImage = colorBeingDragged;
-                            squares[squareIdBeingReplaced].style.backgroundImage = colorBeingReplaced;
-                        }, 250);
-                    }
-                }
-            }
-
-            function checkImmediateMatches() {
-                let r4 = checkRowForFour();
-                let c4 = checkColumnForFour();
-                let r3 = checkRowForThree();
-                let c3 = checkColumnForThree();
-                return r4 || c4 || r3 || c3;
-            }
-
-            function checkRowForFour() {
-                let found = false;
-                for (let i = 0; i < 61; i++) {
-                    let rowOfFour = [i, i + 1, i + 2, i + 3];
-                    let decidedColor = squares[i].style.backgroundImage;
-                    if (i % width > width - 4) continue;
-                    if (rowOfFour.every(idx => squares[idx].style.backgroundImage === decidedColor && decidedColor !== "")) {
-                        score += 4; found = true;
-                        rowOfFour.forEach(idx => squares[idx].style.backgroundImage = "");
-                    }
-                }
-                return found;
-            }
-
-            function checkColumnForFour() {
-                let found = false;
-                for (let i = 0; i < 40; i++) {
-                    let colOfFour = [i, i + width, i + width * 2, i + width * 3];
-                    let decidedColor = squares[i].style.backgroundImage;
-                    if (colOfFour.every(idx => squares[idx].style.backgroundImage === decidedColor && decidedColor !== "")) {
-                        score += 4; found = true;
-                        colOfFour.forEach(idx => squares[idx].style.backgroundImage = "");
-                    }
-                }
-                return found;
-            }
-
-            function checkRowForThree() {
-                let found = false;
-                for (let i = 0; i < 62; i++) {
-                    let rowOfThree = [i, i + 1, i + 2];
-                    let decidedColor = squares[i].style.backgroundImage;
-                    if (i % width > width - 3) continue;
-                    if (rowOfThree.every(idx => squares[idx].style.backgroundImage === decidedColor && decidedColor !== "")) {
-                        score += 3; found = true;
-                        rowOfThree.forEach(idx => squares[idx].style.backgroundImage = "");
-                    }
-                }
-                return found;
-            }
-
-            function checkColumnForThree() {
-                let found = false;
-                for (let i = 0; i < 48; i++) {
-                    let colOfThree = [i, i + width, i + width * 2];
-                    let decidedColor = squares[i].style.backgroundImage;
-                    if (colOfThree.every(idx => squares[idx].style.backgroundImage === decidedColor && decidedColor !== "")) {
-                        score += 3; found = true;
-                        colOfThree.forEach(idx => squares[idx].style.backgroundImage = "");
-                    }
-                }
-                return found;
-            }
-
-            function moveIntoSquareBelow() {
-                for (let i = 0; i < 56; i++) {
-                    if (squares[i + width].style.backgroundImage === "") {
-                        squares[i + width].style.backgroundImage = squares[i].style.backgroundImage;
-                        squares[i].style.backgroundImage = "";
-                    }
-                }
-                for (let i = 0; i < 8; i++) {
-                    if (squares[i].style.backgroundImage === "") {
-                        let randomColor = Math.floor(Math.random() * candyColors.length);
-                        squares[i].style.backgroundImage = candyColors[randomColor];
-                    }
-                }
-            }
-
-            function gameLoop() {
-                checkRowForFour(); checkColumnForFour(); checkRowForThree(); checkColumnForThree();
-                moveIntoSquareBelow();
-                scoreDisplay.innerHTML = score;
-            }
-
-            function startGame(mode) {
-                currentMode = mode;
-                score = 0;
-                modeSelection.style.display = "none";
-                gameContainer.style.display = "flex";
-                createBoard();
-                gameInterval = setInterval(gameLoop, 150);
-                if (mode === "timed") {
-                    timeLeft = 120;
-                    updateTimerDisplay();
-                    timerInterval = setInterval(() => {
-                        timeLeft--; updateTimerDisplay();
-                        if (timeLeft <= 0) endGame();
-                    }, 1000);
+            try {
+                if (navigator.share) {
+                    await navigator.share(shareData);
                 } else {
-                    timerDisplay.innerHTML = "∞";
+                    await navigator.clipboard.writeText(`${shareData.text}\nImage: ${imgUrl}`);
+                    showToast("Link Copied to Clipboard! 📋");
                 }
+            } catch (err) {
+                console.log('Share canceled');
             }
+        };
 
-            function updateTimerDisplay() {
-                let m = Math.floor(timeLeft / 60), s = timeLeft % 60;
-                timerDisplay.innerHTML = `${m}:${s < 10 ? '0' : ''}${s}`;
+        // UI Functions
+        window.openLogin = function() {
+            const modal = document.getElementById('lModal');
+            if(modal) modal.classList.remove('hidden');
+            setTimeout(() => { document.getElementById('pInput')?.focus(); }, 100);
+        };
+
+        window.closeLogin = function() {
+            const modal = document.getElementById('lModal');
+            if(modal) modal.classList.add('hidden');
+            if(document.getElementById('pInput')) document.getElementById('pInput').value = '';
+        };
+
+        window.logoutManual = function() {
+            localStorage.removeItem('sjs_v21_active');
+            window.location.reload();
+        };
+
+        window.handleFileSelect = function(el) {
+            if(el.files && el.files.length) {
+                const tag = document.getElementById('lTag');
+                if(tag) tag.innerHTML = `<i class="fas fa-check-circle text-2xl text-green-500 mb-2"></i><span class="text-green-600 font-bold">Photo Ready ✅</span>`;
             }
+        };
 
-            function endGame() {
-                clearInterval(gameInterval); clearInterval(timerInterval);
-                document.getElementById("msgText").innerText = `Final Score: ${score}`;
-                messageBox.style.display = "block";
+        window.closeDeleteModal = function() {
+            document.getElementById('dModal')?.classList.add('hidden');
+        };
+
+        window.openFullImage = function(url, name) {
+            const img = document.getElementById('lImg');
+            const nm = document.getElementById('lName');
+            const modal = document.getElementById('vModal');
+            if(img) img.src = url;
+            if(nm) nm.innerText = name;
+            if(modal) modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        };
+
+        window.closeFullImage = function() {
+            document.getElementById('vModal')?.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        };
+
+        window.verifyAdmin = function() {
+            const inp = document.getElementById('pInput');
+            if(!inp) return;
+            if (inp.value.trim().toLowerCase() === "sirvitarun9828") {
+                localStorage.setItem('sjs_v21_active', '1');
+                window.closeLogin();
+                document.body.classList.add('admin-active');
+                showToast("Namaste Owner! ✅");
+            } else {
+                showToast("Galt Pin Hai!", true);
             }
+        };
 
-            changeModeButton.addEventListener("click", () => location.reload());
-            endlessButton.addEventListener("click", () => startGame("endless"));
-            timedButton.addEventListener("click", () => startGame("timed"));
+        window.filterCategory = function(cat, el) {
+            window.activeCat = cat;
+            document.querySelectorAll('nav a').forEach(a => {
+                a.classList.remove('nav-active');
+                a.classList.add('text-gray-400');
+                if(a.id === 'cat-Liked') a.classList.remove('text-red-500');
+            });
+            
+            el.classList.add('nav-active');
+            el.classList.remove('text-gray-400');
+            if(cat === 'Liked') el.classList.add('text-red-500');
+
+            loadData();
+        };
+
+        // Firebase Auth & Data
+        const initAuth = async () => {
+            try { await signInAnonymously(auth); } 
+            catch (error) { document.getElementById('loadingMsg').innerText = "Auth Lock. Check Settings."; }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                document.getElementById('loadingStatus')?.classList.add('hidden');
+                loadData();
+            }
         });
+
+        initAuth();
+
+        function loadData() {
+            if (!currentUser) return;
+            const pRef = collection(db, 'artifacts', appId, 'public', 'data', 'products');
+            
+            onSnapshot(pRef, (snap) => {
+                const grid = document.getElementById('pGrid');
+                if(!grid) return;
+                grid.innerHTML = '';
+                
+                let hasItems = false;
+                
+                snap.forEach((docSnap) => {
+                    const item = docSnap.data();
+                    const id = docSnap.id;
+                    
+                    let shouldShow = false;
+                    if (window.activeCat === 'Liked') {
+                        if (window.likedItems.has(id)) shouldShow = true;
+                    } else if (window.activeCat === 'All' || item.cat === window.activeCat) {
+                        shouldShow = true;
+                    }
+
+                    if (shouldShow) {
+                        hasItems = true;
+                        const isLiked = window.likedItems.has(id);
+                        const heartClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart text-gray-400';
+                        
+                        // Safe encode for JS arguments
+                        const encName = encodeURIComponent(item.n);
+                        
+                        const card = document.createElement('div');
+                        card.className = "product-card animate-fade-in";
+                        card.innerHTML = `
+                            <button class="delete-btn" data-id="${id}"><i class="fas fa-trash-alt text-sm"></i></button>
+                            
+                            <div class="aspect-[3/4] overflow-hidden bg-gray-50 relative">
+                                <img src="${item.img}" class="w-full h-full object-cover transition-all duration-700 hover:scale-110" onerror="this.src='https://via.placeholder.com/300x400?text=No+Image'">
+                                <div class="absolute bottom-3 right-3 flex flex-col gap-2 z-10">
+                                    <button onclick="window.toggleLike('${id}', event)" id="like-btn-${id}" class="action-btn hover:bg-red-50">
+                                        <i class="${heartClass} text-lg transition-all duration-300"></i>
+                                    </button>
+                                    <button onclick="window.shareItem('${encName}', '${item.p}', '${item.img}', event)" class="action-btn hover:bg-blue-50 text-blue-500">
+                                        <i class="fas fa-share-alt text-sm"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="p-4 text-center">
+                                <h4 class="brand-font text-xs font-bold uppercase truncate text-gray-800">${item.n}</h4>
+                                <p class="text-lg font-black text-[#B8860B] mt-1 tracking-tight">₹${Number(item.p).toLocaleString()}</p>
+                            </div>`;
+                            
+                        card.onclick = () => window.openFullImage(item.img, item.n);
+                        
+                        const dBtn = card.querySelector('.delete-btn');
+                        if(dBtn) dBtn.onclick = (e) => { e.stopPropagation(); window.deleteItem(id); };
+                        
+                        grid.appendChild(card);
+                    }
+                });
+                
+                const nd = document.getElementById('noData');
+                const ndText = document.getElementById('noDataText');
+                
+                if(nd) {
+                    nd.classList.toggle('hidden', hasItems);
+                    ndText.innerText = (window.activeCat === 'Liked' && !hasItems) ? "No Saved Items Yet ❤️" : "Abhi Stock Khali Hai";
+                }
+            });
+        }
+
+        window.addItem = async function() {
+            if (!currentUser) return showToast("Authenticating...", true);
+            const name = document.getElementById('itemName').value.trim();
+            const price = document.getElementById('itemPrice').value.trim();
+            const cat = document.getElementById('itemCat').value;
+            const fileInput = document.getElementById('imgInp');
+            
+            if (!name || !price || !fileInput.files[0]) return showToast("Puri jaankari bhariye!", true);
+            
+            const btn = document.getElementById('uploadBtn');
+            btn.disabled = true;
+            btn.innerText = "Processing...";
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                formData.append('upload_preset', 'ml_default'); 
+                const clRes = await fetch('https://api.cloudinary.com/v1_1/dkxmgxkgb/image/upload', { method: 'POST', body: formData });
+                const clData = await clRes.json();
+                
+                if (!clData.secure_url) throw new Error("Upload Error");
+
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'products'), { 
+                    n: name, p: price, cat: cat, img: clData.secure_url, timestamp: serverTimestamp() 
+                });
+                
+                showToast("Dukaan Update Ho Gayi! ✅");
+                document.getElementById('itemName').value = '';
+                document.getElementById('itemPrice').value = '';
+                fileInput.value = '';
+                document.getElementById('lTag').innerHTML = `<i class="fas fa-camera text-3xl mb-2 text-yellow-600"></i><span>Photo Chuno</span>`;
+            } catch (e) { 
+                console.error("Upload error:", e);
+                showToast("Upload Failed. Check Cloudinary.", true); 
+            } finally { 
+                btn.disabled = false;
+                btn.innerText = "Upload Karein"; 
+            }
+        };
+
+        window.deleteItem = function(id) {
+            document.getElementById('dModal').classList.remove('hidden');
+            document.getElementById('confirmDeleteBtn').onclick = async () => {
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', id));
+                    showToast("Design Hata Diya Gaya! 🗑️");
+                    window.closeDeleteModal();
+                } catch (e) { showToast("Error deleting", true); }
+            };
+        };
+
+        if (localStorage.getItem('sjs_v21_active') === '1') document.body.classList.add('admin-active');
     </script>
 </body>
 </html>
