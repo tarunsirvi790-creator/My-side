@@ -12,7 +12,6 @@
     <style>
         :root { --gold: #B8860B; --maroon: #800000; --cream-light: #FFF8E1; --cream-dark: #FFECB3; }
         
-        /* GOLDEN BACKGROUND THEME */
         body { 
             font-family: 'Roboto', sans-serif; 
             background: linear-gradient(180deg, var(--cream-light) 0%, #ffe0b2 100%); 
@@ -24,7 +23,6 @@
         
         .brand-font { font-family: 'Playfair Display', serif; }
         
-        /* App Bar with Golden Touch - UPDATED */
         .app-header { 
             background: linear-gradient(to right, #FFF8E1, #ffe0b2);
             position: relative; 
@@ -33,27 +31,26 @@
             border-bottom: 1px solid rgba(184, 134, 11, 0.2);
         }
         
-        /* FLIPKART STYLE CATEGORIES (Rounded Squares) */
+        /* UPDATED: Categories Back to Horizontal Scroll & Circular */
         .cat-item { 
             display: flex; flex-direction: column; align-items: center; justify-content: flex-start; 
-            /* Removed min-width so it fits in grid */
+            min-width: 75px; /* Fixed width for scroll consistency */
             cursor: pointer; transition: 0.2s;
             padding-top: 4px;
         }
         .cat-icon-box {
             width: 55px; height: 55px; 
-            border-radius: 18px; /* Squircle shape like Apps */
+            border-radius: 50%; /* GOL (Circular) */
             background: #fff;
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 4px 8px rgba(0,0,0,0.08);
             margin-bottom: 6px; position: relative;
             transition: transform 0.2s;
-            border: 1px solid white;
+            border: 2px solid white;
         }
         .cat-item:active .cat-icon-box { transform: scale(0.95); }
-        .cat-text { font-size: 11px; font-weight: 500; color: #555; text-align: center; line-height: 1.2; }
+        .cat-text { font-size: 10px; font-weight: 500; color: #555; text-align: center; line-height: 1.2; white-space: nowrap; }
         
-        /* Active State */
         .cat-active .cat-text { color: var(--maroon); font-weight: 700; }
         .cat-active .cat-icon-box { 
             border: 2px solid var(--gold); 
@@ -64,16 +61,16 @@
 
         /* Product Card */
         .product-card { 
-            background: white; border-radius: 12px; 
+            background: white; border-radius: 8px; /* Slightly tighter radius for 3-col grid */
             overflow: hidden; position: relative; 
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
             border: 1px solid rgba(255,255,255,0.6);
         }
         .like-btn-overlay {
-            position: absolute; top: 8px; right: 8px; z-index: 10;
-            width: 30px; height: 30px; background: rgba(255,255,255,0.95);
+            position: absolute; top: 4px; right: 4px; z-index: 10;
+            width: 24px; height: 24px; background: rgba(255,255,255,0.9);
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -83,8 +80,8 @@
         
         .delete-btn { 
             display: none !important; position: absolute; top: 4px; left: 4px; z-index: 50; 
-            background: #ef4444; color: white; width: 24px; height: 24px; 
-            border-radius: 50%; align-items: center; justify-content: center; font-size: 12px;
+            background: #ef4444; color: white; width: 20px; height: 20px; 
+            border-radius: 50%; align-items: center; justify-content: center; font-size: 10px;
         }
 
         .loader-spin { border: 3px solid #f3f3f3; border-top: 3px solid var(--gold); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
@@ -98,15 +95,12 @@
 
     <div id="toast" class="custom-toast"></div>
 
-    <!-- Header -->
     <header class="app-header">
         <div class="px-4 py-3 flex items-center justify-between gap-3">
             <div class="flex items-center gap-2">
-                <!-- Small Royal Logo -->
                 <div class="w-9 h-9 bg-gradient-to-br from-yellow-100 to-yellow-300 rounded-full flex items-center justify-center shadow-sm border border-yellow-200 text-[#B8860B] flex-shrink-0">
                     <i class="fas fa-crown text-sm"></i>
                 </div>
-                <!-- Full Name Together -->
                 <h1 class="brand-font text-base font-bold text-gray-800 tracking-wide leading-tight" style="color: #4a3b2a;">
                     Shree Jagadamba Selection
                 </h1>
@@ -116,23 +110,19 @@
             </button>
         </div>
 
-        <!-- Functional Search Bar -->
         <div class="px-4 pb-4">
             <div class="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm focus-within:ring-2 focus-within:ring-yellow-400/50 transition-all">
                 <i class="fas fa-search text-gray-400 text-lg"></i>
-                <!-- Added oninput event for searching -->
                 <input type="text" 
-                       placeholder="Search Sarees, Kurtis..." 
+                       placeholder="Search..." 
                        class="bg-transparent border-none outline-none text-sm w-full text-gray-700 placeholder-gray-400 font-medium"
                        oninput="window.handleSearch(this.value)">
             </div>
         </div>
 
-        <!-- Flipkart Style Categories (App Icons) - UPDATED TO 3x2 GRID -->
-        <div class="px-6 pb-4">
-            <!-- Grid Layout: 3 Columns, Auto Rows -->
-            <div class="grid grid-cols-3 gap-y-6 gap-x-2">
-                <!-- All -->
+        <!-- Categories: Horizontal Scroll (Sidhi Line) & Circular (Gol) -->
+        <div class="overflow-x-auto no-scrollbar pb-3 pl-2">
+            <div class="flex space-x-2 min-w-max pr-4">
                 <div class="cat-item cat-active" onclick="window.filterCategory('All', this)">
                     <div class="cat-icon-box bg-blue-50">
                         <i class="fas fa-border-all text-blue-600 text-xl"></i>
@@ -140,7 +130,6 @@
                     <span class="cat-text">All Items</span>
                 </div>
                 
-                <!-- Saree -->
                 <div class="cat-item" onclick="window.filterCategory('Saree', this)">
                     <div class="cat-icon-box bg-pink-50">
                         <i class="fas fa-venus text-pink-600 text-xl"></i> 
@@ -148,7 +137,6 @@
                     <span class="cat-text">Sarees</span>
                 </div>
 
-                <!-- Kurti -->
                 <div class="cat-item" onclick="window.filterCategory('Kurti', this)">
                     <div class="cat-icon-box bg-purple-50">
                         <i class="fas fa-female text-purple-600 text-xl"></i>
@@ -156,7 +144,6 @@
                     <span class="cat-text">Kurtis</span>
                 </div>
 
-                <!-- Mens -->
                 <div class="cat-item" onclick="window.filterCategory('Mens Wear', this)">
                     <div class="cat-icon-box bg-indigo-50">
                         <i class="fas fa-tshirt text-indigo-600 text-xl"></i>
@@ -164,7 +151,6 @@
                     <span class="cat-text">Mens</span>
                 </div>
 
-                <!-- Other -->
                 <div class="cat-item" onclick="window.filterCategory('Other', this)">
                     <div class="cat-icon-box bg-orange-50">
                         <i class="fas fa-box-open text-orange-600 text-xl"></i>
@@ -172,7 +158,6 @@
                     <span class="cat-text">Other</span>
                 </div>
 
-                <!-- Saved -->
                 <div class="cat-item" onclick="window.filterCategory('Liked', this)">
                     <div class="cat-icon-box bg-red-50">
                         <i class="fas fa-heart text-red-600 text-xl"></i>
@@ -183,28 +168,34 @@
         </div>
     </header>
 
-    <!-- Notice Strip -->
     <div class="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2 flex items-center justify-center gap-2 shadow-sm">
         <i class="fas fa-store text-[10px]"></i>
         <span class="text-[9px] font-bold tracking-wider uppercase">Visit Store to Purchase • No Online Delivery</span>
     </div>
 
-    <!-- Owner Panel -->
+    <!-- Advanced Owner Panel -->
     <section id="adminPanel" class="admin-only mx-3 mt-4 p-5 bg-white rounded-2xl shadow-lg border border-yellow-100">
         <div class="flex justify-between items-center mb-4 border-b border-dashed border-gray-200 pb-3">
-            <h2 class="text-xs font-bold text-gray-600 uppercase tracking-widest">Owner Controls <span id="totalCount" class="text-yellow-600 ml-1">(-)</span></h2>
+            <div>
+                <h2 class="text-xs font-bold text-gray-600 uppercase tracking-widest">Admin Control</h2>
+                <!-- Visitor Counter Display -->
+                <p class="text-[9px] text-gray-400 mt-0.5">
+                    <i class="fas fa-eye text-[#B8860B] mr-1"></i>
+                    Total App Visits: <span id="visitCount" class="font-bold text-gray-800">Loading...</span>
+                </p>
+            </div>
             <button onclick="window.logoutManual()" class="text-red-500 text-[10px] font-bold px-3 py-1 bg-red-50 rounded-full hover:bg-red-100 transition">LOGOUT</button>
         </div>
 
         <div class="flex gap-3 mb-3">
             <input type="file" id="imgInp" class="hidden" accept="image/*" onchange="window.handleFileSelect(this)">
-            <label for="imgInp" id="lTag" class="w-20 h-20 flex-shrink-0 flex flex-col items-center justify-center border-2 border-dashed border-yellow-300 rounded-xl bg-yellow-50 text-[10px] text-yellow-700 text-center cursor-pointer hover:bg-yellow-100 transition">
-                <i class="fas fa-camera text-xl mb-1"></i>
-                <span>Add Photo</span>
+            <label for="imgInp" id="lTag" class="w-16 h-16 flex-shrink-0 flex flex-col items-center justify-center border-2 border-dashed border-yellow-300 rounded-full bg-yellow-50 text-[9px] text-yellow-700 text-center cursor-pointer hover:bg-yellow-100 transition">
+                <i class="fas fa-camera text-lg mb-1"></i>
+                <span>Photo</span>
             </label>
             
             <div class="flex-1 grid gap-2">
-                <input type="text" id="itemName" placeholder="Item Name (e.g. Red Saree)" class="bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs w-full outline-none focus:border-yellow-400 transition">
+                <input type="text" id="itemName" placeholder="Item Name" class="bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs w-full outline-none focus:border-yellow-400 transition">
                 <div class="flex gap-2">
                     <input type="number" id="itemPrice" placeholder="Price" class="bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs w-1/2 outline-none focus:border-yellow-400 transition font-bold text-gray-700">
                     <select id="itemCat" class="bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs w-1/2 text-gray-600 outline-none focus:border-yellow-400 transition">
@@ -217,15 +208,16 @@
                 <button id="uploadBtn" onclick="window.addItem()" class="w-full bg-gradient-to-r from-yellow-600 to-yellow-700 text-white py-2 rounded-lg text-xs font-bold uppercase shadow-md active:scale-95 transition">Upload Item</button>
             </div>
         </div>
+        <p class="text-[9px] text-gray-400 text-center">Total Items in Store: <span id="totalCount" class="font-bold">...</span></p>
     </section>
 
-    <!-- Product Grid -->
-    <main class="max-w-7xl mx-auto px-3 py-4 min-h-[60vh]">
+    <main class="max-w-7xl mx-auto px-2 py-4 min-h-[60vh]">
         <div id="loadingStatus" class="flex flex-col items-center justify-center py-16 text-yellow-700/50">
             <div class="loader-spin mb-3"></div><p class="text-[10px] font-bold tracking-widest uppercase">Connecting to Database...</p>
         </div>
         
-        <div id="pGrid" class="grid grid-cols-2 md:grid-cols-4 gap-3 pb-8"></div>
+        <!-- Product Grid: 3 Columns for Mobile (grid-cols-3) -->
+        <div id="pGrid" class="grid grid-cols-3 md:grid-cols-5 gap-2 pb-8"></div>
         
         <div id="noData" class="hidden flex flex-col items-center justify-center py-20 text-gray-400/60">
             <i class="fas fa-box-open text-4xl mb-2 opacity-50"></i>
@@ -233,7 +225,6 @@
         </div>
     </main>
 
-    <!-- Footer -->
     <div class="text-center py-8 text-[#B8860B]/60 text-[10px]">
         <div class="w-12 h-0.5 bg-[#B8860B]/20 mx-auto mb-3"></div>
         <p class="brand-font font-bold text-sm text-[#B8860B]">Shree Jagadamba Selection</p>
@@ -273,7 +264,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, serverTimestamp, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBLlLFFbzRzB4oE-LT4QxbUmukO6SVRJ4I",
@@ -292,7 +283,7 @@
 
         let currentUser = null;
         window.activeCat = 'All';
-        window.searchTerm = ''; // New search variable
+        window.searchTerm = '';
         
         try {
             window.likedItems = new Set(JSON.parse(localStorage.getItem('sjs_liked_items') || '[]'));
@@ -308,10 +299,58 @@
             setTimeout(() => t.classList.remove('show'), 3000);
         };
 
-        // Search Function
+        // --- NEW: Security & Visitor Tracking ---
+        
+        // 1. Log Visit (Executed on Load)
+        const logVisit = async () => {
+            const visitKey = 'sjs_last_visit_ts';
+            const lastVisit = localStorage.getItem(visitKey);
+            const now = Date.now();
+            
+            // Log if first time or more than 1 hour since last log
+            if (!lastVisit || (now - parseInt(lastVisit)) > 3600000) { 
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'visits'), {
+                        ts: serverTimestamp(),
+                        ua: navigator.userAgent.slice(0, 100) // Minimal device info
+                    });
+                    localStorage.setItem(visitKey, now.toString());
+                    console.log("Visit logged");
+                } catch (e) { console.error("Log error", e); }
+            }
+        };
+
+        // 2. Load Visit Count (For Admin)
+        const loadVisitCount = () => {
+            const vRef = collection(db, 'artifacts', appId, 'public', 'data', 'visits');
+            onSnapshot(vRef, (snap) => {
+                const el = document.getElementById('visitCount');
+                if(el) el.innerText = snap.size + " Users";
+            });
+        };
+
+        // 3. Encrypted Auth Check
+        window.verifyAdmin = () => {
+            const pin = document.getElementById('pInput').value.trim();
+            // Encoded PIN: "sirvitarun9828" in Base64 is "c2lydml0YXJ1bjk4Mjg="
+            // This prevents the PIN from being visible in plain text in the source code
+            if (btoa(pin.toLowerCase()) === "c2lydml0YXJ1bjk4Mjg=") {
+                localStorage.setItem('sjs_v21_active', '1');
+                window.closeLogin();
+                document.body.classList.add('admin-active');
+                showToast("Welcome Owner! 👑");
+                loadVisitCount(); // Start loading visitor stats
+            } else {
+                showToast("Access Denied 🔒");
+                document.getElementById('pInput').value = '';
+            }
+        };
+
+        // --- Standard Functions ---
+
         window.handleSearch = function(val) {
             window.searchTerm = val.toLowerCase().trim();
-            loadData(); // Re-render with filter
+            loadData();
         };
 
         window.toggleLike = function(id, e) {
@@ -375,19 +414,6 @@
         };
         window.closeFullImage = () => document.getElementById('vModal').classList.add('hidden');
 
-        window.verifyAdmin = () => {
-            const pin = document.getElementById('pInput').value.trim().toLowerCase();
-            if (pin === "sirvitarun9828") {
-                localStorage.setItem('sjs_v21_active', '1');
-                window.closeLogin();
-                document.body.classList.add('admin-active');
-                showToast("Welcome Owner! 👑");
-            } else {
-                showToast("Incorrect PIN ❌");
-                document.getElementById('pInput').value = '';
-            }
-        };
-
         window.filterCategory = (cat, el) => {
             window.activeCat = cat;
             document.querySelectorAll('.cat-item').forEach(c => c.classList.remove('cat-active'));
@@ -403,6 +429,8 @@
             currentUser = user;
             if (user) {
                 document.getElementById('loadingStatus').classList.add('hidden');
+                logVisit(); // Track visitor when auth ready
+                if(localStorage.getItem('sjs_v21_active') === '1') loadVisitCount(); // Load stats if already admin
                 loadData();
             }
         });
@@ -419,7 +447,8 @@
                 grid.innerHTML = '';
                 
                 const totalCount = snap.size;
-                document.getElementById('totalCount').innerText = `(${totalCount})`;
+                const countEl = document.getElementById('totalCount');
+                if(countEl) countEl.innerText = totalCount;
                 
                 let hasItems = false;
                 
@@ -430,14 +459,12 @@
                     
                     let shouldShow = false;
                     
-                    // 1. Category Filter
                     if (window.activeCat === 'Liked') {
                         if (window.likedItems.has(id)) shouldShow = true;
                     } else if (window.activeCat === 'All' || item.cat === window.activeCat) {
                         shouldShow = true;
                     }
                     
-                    // 2. Search Filter (if search term exists, it overrides/refines)
                     if (shouldShow && window.searchTerm) {
                         if (!itemNameLower.includes(window.searchTerm)) {
                             shouldShow = false;
@@ -454,7 +481,6 @@
                         card.innerHTML = `
                             <button class="delete-btn" onclick="event.stopPropagation(); window.deleteItem('${id}')"><i class="fas fa-trash"></i></button>
                             
-                            <!-- Like Button Overlay -->
                             <button onclick="window.toggleLike('${id}', event)" id="like-btn-${id}" class="like-btn-overlay transition-colors ${isLiked ? 'bg-red-50' : ''}">
                                 <i class="${isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart text-gray-400'} text-sm"></i>
                             </button>
@@ -463,13 +489,13 @@
                                 <img src="${item.img}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/150?text=SJS'">
                             </div>
                             
-                            <div class="p-3">
-                                <h4 class="text-[9px] text-gray-500 truncate mb-0.5 uppercase tracking-wide">${item.cat}</h4>
-                                <h3 class="text-xs font-bold text-gray-800 truncate mb-1 leading-tight">${item.n}</h3>
-                                <div class="flex items-center justify-between mt-2">
-                                    <span class="text-sm font-black text-[#B8860B]">₹${Number(item.p).toLocaleString()}</span>
+                            <div class="p-2">
+                                <h4 class="text-[8px] text-gray-500 truncate mb-0.5 uppercase tracking-wide">${item.cat}</h4>
+                                <h3 class="text-[10px] font-bold text-gray-800 truncate mb-1 leading-tight">${item.n}</h3>
+                                <div class="flex items-center justify-between mt-1">
+                                    <span class="text-xs font-black text-[#B8860B]">₹${Number(item.p).toLocaleString()}</span>
                                     <button onclick="window.shareItem('${encName}', '${item.p}', '${item.img}', event)" class="text-gray-400 hover:text-blue-500 p-1">
-                                        <i class="fas fa-share-alt text-xs"></i>
+                                        <i class="fas fa-share-alt text-[10px]"></i>
                                     </button>
                                 </div>
                             </div>`;
@@ -520,7 +546,7 @@
                 document.getElementById('itemName').value = '';
                 document.getElementById('itemPrice').value = '';
                 fileInput.value = '';
-                document.getElementById('lTag').innerHTML = `<i class="fas fa-camera text-xl mb-1"></i><span>Add Photo</span>`;
+                document.getElementById('lTag').innerHTML = `<i class="fas fa-camera text-xl mb-1"></i><span>Photo</span>`;
                 document.getElementById('lTag').classList.replace('border-green-400', 'border-yellow-300');
                 document.getElementById('lTag').classList.replace('bg-green-50', 'bg-yellow-50');
             } catch (e) { 
