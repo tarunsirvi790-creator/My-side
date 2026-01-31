@@ -3,102 +3,137 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SJS Showroom | Professional Catalogue</title>
+    <title>Shree Jagadamba Selection</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
-        :root { --gold: #B8860B; --blue: #2874f0; --bg-gray: #f1f3f6; }
-        body { font-family: 'Roboto', sans-serif; background-color: var(--bg-gray); color: #212121; margin: 0; -webkit-tap-highlight-color: transparent; }
+        :root { --gold: #B8860B; --maroon: #800000; --cream-light: #FFF8E1; --cream-dark: #FFECB3; }
         
-        /* App Bar Style */
-        .app-header { background: #fff; position: sticky; top: 0; z-index: 50; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        /* GOLDEN BACKGROUND THEME */
+        body { 
+            font-family: 'Roboto', sans-serif; 
+            background: linear-gradient(180deg, var(--cream-light) 0%, #ffe0b2 100%); 
+            color: #4a4a4a; 
+            margin: 0; 
+            -webkit-tap-highlight-color: transparent;
+            min-height: 100vh;
+        }
         
-        /* Flipkart Style Categories */
+        .brand-font { font-family: 'Playfair Display', serif; }
+        
+        /* App Bar with Golden Touch */
+        .app-header { 
+            background: rgba(255, 255, 255, 0.95); 
+            backdrop-filter: blur(10px);
+            position: sticky; top: 0; z-index: 50; 
+            box-shadow: 0 4px 20px rgba(184, 134, 11, 0.15); 
+            border-bottom: 1px solid rgba(184, 134, 11, 0.2);
+        }
+        
+        /* FLIPKART STYLE CATEGORIES (Rounded Squares) */
         .cat-item { 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            min-width: 72px; cursor: pointer; transition: 0.2s;
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-start; 
+            min-width: 80px; cursor: pointer; transition: 0.2s;
+            padding-top: 4px;
         }
         .cat-icon-box {
-            width: 48px; height: 48px; border-radius: 50%; background: #fff;
+            width: 55px; height: 55px; 
+            border-radius: 18px; /* Squircle shape like Apps */
+            background: #fff;
             display: flex; align-items: center; justify-content: center;
-            border: 1px solid #e0e0e0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            margin-bottom: 4px; overflow: hidden; position: relative;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+            margin-bottom: 6px; position: relative;
+            transition: transform 0.2s;
+            border: 1px solid white;
         }
-        .cat-img { width: 100%; height: 100%; object-fit: cover; }
-        .cat-text { font-size: 11px; font-weight: 500; color: #333; text-align: center; line-height: 1.2; }
-        .cat-active .cat-text { color: var(--gold); font-weight: 700; }
-        .cat-active .cat-icon-box { border-color: var(--gold); border-width: 2px; }
+        .cat-item:active .cat-icon-box { transform: scale(0.95); }
+        .cat-text { font-size: 11px; font-weight: 500; color: #555; text-align: center; line-height: 1.2; }
+        
+        /* Active State */
+        .cat-active .cat-text { color: var(--maroon); font-weight: 700; }
+        .cat-active .cat-icon-box { 
+            border: 2px solid var(--gold); 
+            background: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(184, 134, 11, 0.2);
+        }
 
-        /* Product Card - Compact Style */
+        /* Product Card */
         .product-card { 
-            background: white; border-radius: 4px; 
+            background: white; border-radius: 12px; 
             overflow: hidden; position: relative; 
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255,255,255,0.6);
         }
         .like-btn-overlay {
             position: absolute; top: 8px; right: 8px; z-index: 10;
-            width: 28px; height: 28px; background: rgba(255,255,255,0.9);
+            width: 30px; height: 30px; background: rgba(255,255,255,0.95);
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         }
 
-        /* Utilities */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .admin-only { display: none !important; }
         body.admin-active .admin-only { display: block !important; }
+        body.admin-active .delete-btn { display: flex !important; }
         
         .delete-btn { 
             display: none !important; position: absolute; top: 4px; left: 4px; z-index: 50; 
             background: #ef4444; color: white; width: 24px; height: 24px; 
             border-radius: 50%; align-items: center; justify-content: center; font-size: 12px;
         }
-        body.admin-active .delete-btn { display: flex !important; }
 
-        .loader-spin { border: 2px solid #f3f3f3; border-top: 2px solid var(--gold); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        .loader-spin { border: 3px solid #f3f3f3; border-top: 3px solid var(--gold); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        .custom-toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 10000; padding: 10px 20px; border-radius: 20px; background: #333; color: white; font-size: 12px; opacity: 0; pointer-events: none; transition: 0.3s; white-space: nowrap; }
+        .custom-toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 10000; padding: 12px 24px; border-radius: 30px; background: #2D2424; color: #fff; font-size: 13px; opacity: 0; pointer-events: none; transition: 0.3s; white-space: nowrap; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
         .custom-toast.show { opacity: 1; pointer-events: auto; }
     </style>
 </head>
-<body class="pb-20">
+<body class="pb-24">
 
     <div id="toast" class="custom-toast"></div>
 
-    <!-- 1. Compact App Header -->
+    <!-- Header -->
     <header class="app-header">
         <div class="px-4 py-3 flex items-center justify-between gap-3">
             <div class="flex items-center gap-2">
-                <i class="fas fa-crown text-[#B8860B] text-xl"></i>
-                <div class="leading-tight">
-                    <h1 class="text-sm font-bold text-gray-800 uppercase tracking-wide">SJS Showroom</h1>
-                    <p class="text-[9px] text-gray-500">Anavatti • Shivamogga</p>
+                <!-- Small Royal Logo -->
+                <div class="w-9 h-9 bg-gradient-to-br from-yellow-100 to-yellow-300 rounded-full flex items-center justify-center shadow-sm border border-yellow-200 text-[#B8860B] flex-shrink-0">
+                    <i class="fas fa-crown text-sm"></i>
                 </div>
+                <!-- Full Name Together -->
+                <h1 class="brand-font text-base font-bold text-gray-800 tracking-wide leading-tight" style="color: #4a3b2a;">
+                    Shree Jagadamba Selection
+                </h1>
             </div>
-            <!-- Owner Login Button (Small Icon) -->
-            <button onclick="window.openLogin()" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-800">
-                <i class="fas fa-user-circle text-xl"></i>
+            <button onclick="window.openLogin()" class="w-8 h-8 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 hover:text-[#B8860B] border border-gray-100 shadow-sm flex-shrink-0">
+                <i class="fas fa-user-shield text-xs"></i>
             </button>
         </div>
 
-        <!-- Search Bar Lookalike -->
-        <div class="px-4 pb-3">
-            <div class="bg-gray-100 rounded-lg px-3 py-2 flex items-center gap-2 text-gray-500 text-sm">
-                <i class="fas fa-search text-gray-400"></i>
-                <span>Search for Sarees, Kurtis...</span>
+        <!-- Functional Search Bar -->
+        <div class="px-4 pb-4">
+            <div class="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3 shadow-inner focus-within:ring-2 focus-within:ring-yellow-400/50 transition-all">
+                <i class="fas fa-search text-gray-400 text-lg"></i>
+                <!-- Added oninput event for searching -->
+                <input type="text" 
+                       placeholder="Search Sarees, Kurtis..." 
+                       class="bg-transparent border-none outline-none text-sm w-full text-gray-700 placeholder-gray-400 font-medium"
+                       oninput="window.handleSearch(this.value)">
             </div>
         </div>
 
-        <!-- 2. Flipkart Style Category Strip -->
-        <div class="bg-white border-b border-gray-100 overflow-x-auto no-scrollbar pb-2">
-            <div class="flex px-2 space-x-1 min-w-max">
+        <!-- Flipkart Style Categories (App Icons) -->
+        <div class="overflow-x-auto no-scrollbar pb-3 pl-2">
+            <div class="flex space-x-2 min-w-max pr-4">
                 <!-- All -->
                 <div class="cat-item cat-active" onclick="window.filterCategory('All', this)">
                     <div class="cat-icon-box bg-blue-50">
-                        <i class="fas fa-th-large text-blue-500 text-lg"></i>
+                        <i class="fas fa-border-all text-blue-600 text-xl"></i>
                     </div>
                     <span class="cat-text">All Items</span>
                 </div>
@@ -106,8 +141,7 @@
                 <!-- Saree -->
                 <div class="cat-item" onclick="window.filterCategory('Saree', this)">
                     <div class="cat-icon-box bg-pink-50">
-                        <!-- Using an icon that looks like a dress -->
-                        <i class="fas fa-user-tie text-pink-500 text-lg" style="transform: scaleX(0.9);"></i> 
+                        <i class="fas fa-venus text-pink-600 text-xl"></i> 
                     </div>
                     <span class="cat-text">Sarees</span>
                 </div>
@@ -115,7 +149,7 @@
                 <!-- Kurti -->
                 <div class="cat-item" onclick="window.filterCategory('Kurti', this)">
                     <div class="cat-icon-box bg-purple-50">
-                        <i class="fas fa-female text-purple-500 text-lg"></i>
+                        <i class="fas fa-female text-purple-600 text-xl"></i>
                     </div>
                     <span class="cat-text">Kurtis</span>
                 </div>
@@ -123,7 +157,7 @@
                 <!-- Mens -->
                 <div class="cat-item" onclick="window.filterCategory('Mens Wear', this)">
                     <div class="cat-icon-box bg-indigo-50">
-                        <i class="fas fa-tshirt text-indigo-500 text-lg"></i>
+                        <i class="fas fa-tshirt text-indigo-600 text-xl"></i>
                     </div>
                     <span class="cat-text">Mens</span>
                 </div>
@@ -131,7 +165,7 @@
                 <!-- Other -->
                 <div class="cat-item" onclick="window.filterCategory('Other', this)">
                     <div class="cat-icon-box bg-orange-50">
-                        <i class="fas fa-box-open text-orange-500 text-lg"></i>
+                        <i class="fas fa-box-open text-orange-600 text-xl"></i>
                     </div>
                     <span class="cat-text">Other</span>
                 </div>
@@ -139,7 +173,7 @@
                 <!-- Saved -->
                 <div class="cat-item" onclick="window.filterCategory('Liked', this)">
                     <div class="cat-icon-box bg-red-50">
-                        <i class="fas fa-heart text-red-500 text-lg"></i>
+                        <i class="fas fa-heart text-red-600 text-xl"></i>
                     </div>
                     <span class="cat-text">Saved</span>
                 </div>
@@ -147,89 +181,90 @@
         </div>
     </header>
 
-    <!-- Important Notice Strip -->
-    <div class="bg-yellow-100 px-4 py-2 flex items-center justify-center gap-2 text-[10px] font-bold text-yellow-800 border-b border-yellow-200">
-        <i class="fas fa-store"></i>
-        <span>NO ONLINE DELIVERY • VISIT STORE ONLY</span>
+    <!-- Notice Strip -->
+    <div class="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2 flex items-center justify-center gap-2 shadow-sm">
+        <i class="fas fa-store text-[10px]"></i>
+        <span class="text-[9px] font-bold tracking-wider uppercase">Visit Store to Purchase • No Online Delivery</span>
     </div>
 
-    <!-- Owner Dashboard (Hidden by default) -->
-    <section id="adminPanel" class="admin-only mx-2 mt-4 p-4 bg-white rounded-xl shadow border border-gray-200">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-sm font-bold text-gray-800 uppercase">Owner Panel <span id="totalCount" class="text-gray-400 font-normal ml-1">(-)</span></h2>
-            <button onclick="window.logoutManual()" class="text-red-500 text-[10px] font-bold border border-red-200 px-2 py-1 rounded">LOGOUT</button>
+    <!-- Owner Panel -->
+    <section id="adminPanel" class="admin-only mx-3 mt-4 p-5 bg-white rounded-2xl shadow-lg border border-yellow-100">
+        <div class="flex justify-between items-center mb-4 border-b border-dashed border-gray-200 pb-3">
+            <h2 class="text-xs font-bold text-gray-600 uppercase tracking-widest">Owner Controls <span id="totalCount" class="text-yellow-600 ml-1">(-)</span></h2>
+            <button onclick="window.logoutManual()" class="text-red-500 text-[10px] font-bold px-3 py-1 bg-red-50 rounded-full hover:bg-red-100 transition">LOGOUT</button>
         </div>
 
-        <div class="flex gap-2 mb-2">
+        <div class="flex gap-3 mb-3">
             <input type="file" id="imgInp" class="hidden" accept="image/*" onchange="window.handleFileSelect(this)">
-            <label for="imgInp" id="lTag" class="w-16 h-16 flex-shrink-0 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 text-[9px] text-gray-500 text-center">
-                <i class="fas fa-camera text-lg mb-1"></i>
-                <span>Photo</span>
+            <label for="imgInp" id="lTag" class="w-20 h-20 flex-shrink-0 flex flex-col items-center justify-center border-2 border-dashed border-yellow-300 rounded-xl bg-yellow-50 text-[10px] text-yellow-700 text-center cursor-pointer hover:bg-yellow-100 transition">
+                <i class="fas fa-camera text-xl mb-1"></i>
+                <span>Add Photo</span>
             </label>
             
             <div class="flex-1 grid gap-2">
-                <input type="text" id="itemName" placeholder="Item Name" class="bg-gray-50 border p-2 rounded text-xs w-full">
+                <input type="text" id="itemName" placeholder="Item Name (e.g. Red Saree)" class="bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs w-full outline-none focus:border-yellow-400 transition">
                 <div class="flex gap-2">
-                    <input type="number" id="itemPrice" placeholder="₹ Price" class="bg-gray-50 border p-2 rounded text-xs w-1/2">
-                    <select id="itemCat" class="bg-gray-50 border p-2 rounded text-xs w-1/2 text-gray-600">
+                    <input type="number" id="itemPrice" placeholder="Price" class="bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs w-1/2 outline-none focus:border-yellow-400 transition font-bold text-gray-700">
+                    <select id="itemCat" class="bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs w-1/2 text-gray-600 outline-none focus:border-yellow-400 transition">
                         <option value="Saree">Saree</option>
                         <option value="Kurti">Kurti</option>
                         <option value="Mens Wear">Mens</option>
                         <option value="Other">Other</option>
                     </select>
                 </div>
+                <button id="uploadBtn" onclick="window.addItem()" class="w-full bg-gradient-to-r from-yellow-600 to-yellow-700 text-white py-2 rounded-lg text-xs font-bold uppercase shadow-md active:scale-95 transition">Upload Item</button>
             </div>
         </div>
-        <button id="uploadBtn" onclick="window.addItem()" class="w-full bg-black text-white py-2 rounded-lg text-xs font-bold uppercase">Upload Item</button>
     </section>
 
-    <!-- 3. Product Grid (Flipkart Layout) -->
-    <main class="max-w-7xl mx-auto px-2 py-3 min-h-[60vh]">
-        <div id="loadingStatus" class="flex flex-col items-center justify-center py-12 text-gray-400">
-            <div class="loader-spin mb-2"></div><p class="text-[10px]">Loading Collection...</p>
+    <!-- Product Grid -->
+    <main class="max-w-7xl mx-auto px-3 py-4 min-h-[60vh]">
+        <div id="loadingStatus" class="flex flex-col items-center justify-center py-16 text-yellow-700/50">
+            <div class="loader-spin mb-3"></div><p class="text-[10px] font-bold tracking-widest uppercase">Connecting to Database...</p>
         </div>
         
-        <!-- Grid with tight spacing -->
-        <div id="pGrid" class="grid grid-cols-2 md:grid-cols-4 gap-2"></div>
+        <div id="pGrid" class="grid grid-cols-2 md:grid-cols-4 gap-3 pb-8"></div>
         
-        <div id="noData" class="hidden flex flex-col items-center justify-center py-16 text-gray-400">
-            <i class="fas fa-box-open text-3xl mb-2 opacity-50"></i>
-            <p id="noDataText" class="text-xs">No Items Found</p>
+        <div id="noData" class="hidden flex flex-col items-center justify-center py-20 text-gray-400/60">
+            <i class="fas fa-box-open text-4xl mb-2 opacity-50"></i>
+            <p id="noDataText" class="text-xs font-medium">No matches found</p>
         </div>
     </main>
 
-    <!-- Bottom Info -->
-    <div class="text-center py-8 text-gray-400 text-[10px]">
-        <p class="font-bold">SHREE JAGADAMBA SELECTION</p>
-        <p>Anavatti Market • 10 AM - 9 PM</p>
+    <!-- Footer -->
+    <div class="text-center py-8 text-[#B8860B]/60 text-[10px]">
+        <div class="w-12 h-0.5 bg-[#B8860B]/20 mx-auto mb-3"></div>
+        <p class="brand-font font-bold text-sm text-[#B8860B]">Shree Jagadamba Selection</p>
+        <p class="mt-1">Anavatti Market • Shivamogga</p>
     </div>
 
     <!-- Modals -->
-    <div id="dModal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-6 text-center z-[10001]">
-        <div class="bg-white rounded-xl p-6 w-64 shadow-2xl">
-            <h2 class="text-sm font-bold mb-4 text-gray-800">Delete Item?</h2>
-            <div class="flex gap-2">
-                <button onclick="window.closeDeleteModal()" class="flex-1 py-2 text-xs font-bold text-gray-500 bg-gray-100 rounded">NO</button>
-                <button id="confirmDeleteBtn" class="flex-1 py-2 text-xs font-bold text-white bg-red-500 rounded">YES</button>
+    <div id="dModal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-6 text-center z-[10001] bg-black/80 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl p-6 w-64 shadow-2xl border border-yellow-100">
+            <h2 class="text-sm font-bold mb-4 text-gray-800">Delete this item?</h2>
+            <div class="flex gap-3">
+                <button onclick="window.closeDeleteModal()" class="flex-1 py-2.5 text-xs font-bold text-gray-500 bg-gray-100 rounded-xl hover:bg-gray-200">Cancel</button>
+                <button id="confirmDeleteBtn" class="flex-1 py-2.5 text-xs font-bold text-white bg-red-500 rounded-xl shadow-lg shadow-red-200 hover:bg-red-600">Delete</button>
             </div>
         </div>
     </div>
 
-    <div id="lModal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-6 text-center">
-        <div class="bg-white rounded-2xl p-8 w-72 shadow-2xl relative">
-            <button onclick="window.closeLogin()" class="absolute top-3 right-4 text-gray-400"><i class="fas fa-times"></i></button>
-            <h2 class="text-lg font-bold mb-4 text-gray-800">Admin Login</h2>
-            <input type="password" id="pInput" placeholder="Enter PIN" class="w-full p-3 bg-gray-50 border rounded-lg text-center text-lg tracking-[0.2em] mb-4 outline-none focus:border-black">
-            <button onclick="window.verifyAdmin()" class="w-full py-3 bg-black text-white rounded-lg text-xs font-bold tracking-wider">UNLOCK</button>
+    <div id="lModal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-6 text-center bg-black/80 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl p-8 w-72 shadow-2xl relative border-2 border-yellow-100">
+            <button onclick="window.closeLogin()" class="absolute top-4 right-5 text-gray-300 hover:text-gray-500"><i class="fas fa-times"></i></button>
+            <div class="w-12 h-12 bg-yellow-50 rounded-full flex items-center justify-center mx-auto mb-4 text-[#B8860B]"><i class="fas fa-lock"></i></div>
+            <h2 class="text-lg font-bold mb-6 text-gray-800 brand-font">Owner Access</h2>
+            <input type="password" id="pInput" placeholder="Enter PIN" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-center text-lg tracking-[0.3em] mb-4 outline-none focus:border-[#B8860B] focus:bg-white transition">
+            <button onclick="window.verifyAdmin()" class="w-full py-3 bg-gradient-to-r from-[#B8860B] to-yellow-700 text-white rounded-xl text-xs font-bold tracking-wider shadow-lg hover:shadow-xl transition transform active:scale-95">UNLOCK STORE</button>
         </div>
     </div>
 
-    <div id="vModal" class="hidden fixed inset-0 modal-overlay flex flex-col items-center justify-center z-[9999] bg-black" onclick="window.closeFullImage()">
-        <button class="absolute top-4 right-4 text-white p-2" onclick="window.closeFullImage()"><i class="fas fa-times text-xl"></i></button>
-        <img id="lImg" src="" class="max-h-[80vh] w-full object-contain" onclick="event.stopPropagation()">
-        <div class="absolute bottom-0 w-full bg-gradient-to-t from-black p-6 text-center">
-            <p id="lName" class="text-white font-bold text-lg mb-1"></p>
-            <p class="text-gray-300 text-xs">Pinch to zoom • Tap outside to close</p>
+    <div id="vModal" class="hidden fixed inset-0 modal-overlay flex flex-col items-center justify-center z-[9999] bg-black/95" onclick="window.closeFullImage()">
+        <button class="absolute top-4 right-4 text-white/70 hover:text-white p-2" onclick="window.closeFullImage()"><i class="fas fa-times text-2xl"></i></button>
+        <img id="lImg" src="" class="max-h-[85vh] w-full object-contain p-2" onclick="event.stopPropagation()">
+        <div class="absolute bottom-0 w-full bg-gradient-to-t from-black via-black/80 to-transparent p-8 text-center">
+            <p id="lName" class="text-white font-bold text-xl mb-1 brand-font tracking-wide"></p>
+            <p class="text-white/50 text-[10px] uppercase tracking-widest">Shree Jagadamba Selection</p>
         </div>
     </div>
 
@@ -255,6 +290,7 @@
 
         let currentUser = null;
         window.activeCat = 'All';
+        window.searchTerm = ''; // New search variable
         
         try {
             window.likedItems = new Set(JSON.parse(localStorage.getItem('sjs_liked_items') || '[]'));
@@ -268,6 +304,12 @@
             t.innerText = msg;
             t.classList.add('show');
             setTimeout(() => t.classList.remove('show'), 3000);
+        };
+
+        // Search Function
+        window.handleSearch = function(val) {
+            window.searchTerm = val.toLowerCase().trim();
+            loadData(); // Re-render with filter
         };
 
         window.toggleLike = function(id, e) {
@@ -298,8 +340,8 @@
             e.stopPropagation();
             const name = decodeURIComponent(encName);
             const shareData = {
-                title: 'SJS Product',
-                text: `${name} - ₹${price}\nFrom: Shree Jagadamba Selection, Anavatti`,
+                title: 'Shree Jagadamba Selection',
+                text: `${name} - ₹${price}\nAvailable at Shree Jagadamba Selection, Anavatti`,
                 url: window.location.href
             };
             try {
@@ -317,7 +359,9 @@
         
         window.handleFileSelect = (el) => {
             if(el.files && el.files.length) {
-                document.getElementById('lTag').innerHTML = `<i class="fas fa-check text-green-500 text-xl"></i>`;
+                document.getElementById('lTag').innerHTML = `<i class="fas fa-check text-green-600 text-xl mb-1"></i><span class="text-green-600 font-bold">Ready</span>`;
+                document.getElementById('lTag').classList.replace('border-yellow-300', 'border-green-400');
+                document.getElementById('lTag').classList.replace('bg-yellow-50', 'bg-green-50');
             }
         };
 
@@ -335,9 +379,10 @@
                 localStorage.setItem('sjs_v21_active', '1');
                 window.closeLogin();
                 document.body.classList.add('admin-active');
-                showToast("Owner Mode Active");
+                showToast("Welcome Owner! 👑");
             } else {
-                showToast("Wrong PIN");
+                showToast("Incorrect PIN ❌");
+                document.getElementById('pInput').value = '';
             }
         };
 
@@ -379,12 +424,22 @@
                 snap.forEach((docSnap) => {
                     const item = docSnap.data();
                     const id = docSnap.id;
+                    const itemNameLower = item.n.toLowerCase();
                     
                     let shouldShow = false;
+                    
+                    // 1. Category Filter
                     if (window.activeCat === 'Liked') {
                         if (window.likedItems.has(id)) shouldShow = true;
                     } else if (window.activeCat === 'All' || item.cat === window.activeCat) {
                         shouldShow = true;
+                    }
+                    
+                    // 2. Search Filter (if search term exists, it overrides/refines)
+                    if (shouldShow && window.searchTerm) {
+                        if (!itemNameLower.includes(window.searchTerm)) {
+                            shouldShow = false;
+                        }
                     }
 
                     if (shouldShow) {
@@ -402,16 +457,16 @@
                                 <i class="${isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart text-gray-400'} text-sm"></i>
                             </button>
 
-                            <div class="aspect-[4/5] bg-gray-50 relative">
+                            <div class="aspect-[3/4] bg-gray-50 relative">
                                 <img src="${item.img}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/150?text=SJS'">
                             </div>
                             
-                            <div class="p-2">
-                                <h4 class="text-[10px] text-gray-500 truncate mb-1">${item.cat}</h4>
-                                <h3 class="text-xs font-medium text-gray-800 truncate mb-1 leading-tight">${item.n}</h3>
-                                <div class="flex items-center justify-between mt-1">
-                                    <span class="text-sm font-bold text-gray-900">₹${Number(item.p).toLocaleString()}</span>
-                                    <button onclick="window.shareItem('${encName}', '${item.p}', '${item.img}', event)" class="text-gray-400 p-1">
+                            <div class="p-3">
+                                <h4 class="text-[9px] text-gray-500 truncate mb-0.5 uppercase tracking-wide">${item.cat}</h4>
+                                <h3 class="text-xs font-bold text-gray-800 truncate mb-1 leading-tight">${item.n}</h3>
+                                <div class="flex items-center justify-between mt-2">
+                                    <span class="text-sm font-black text-[#B8860B]">₹${Number(item.p).toLocaleString()}</span>
+                                    <button onclick="window.shareItem('${encName}', '${item.p}', '${item.img}', event)" class="text-gray-400 hover:text-blue-500 p-1">
                                         <i class="fas fa-share-alt text-xs"></i>
                                     </button>
                                 </div>
@@ -425,7 +480,10 @@
                 const nd = document.getElementById('noData');
                 if(nd) {
                     nd.classList.toggle('hidden', hasItems);
-                    document.getElementById('noDataText').innerText = (window.activeCat === 'Liked' && !hasItems) ? "No Saved Items" : "No Items Found";
+                    const ndText = document.getElementById('noDataText');
+                    if (window.searchTerm) ndText.innerText = `No items matching "${window.searchTerm}"`;
+                    else if (window.activeCat === 'Liked') ndText.innerText = "No Saved Items";
+                    else ndText.innerText = "No Items Found";
                 }
             });
         }
@@ -437,11 +495,11 @@
             const cat = document.getElementById('itemCat').value;
             const fileInput = document.getElementById('imgInp');
             
-            if (!name || !price || !fileInput.files[0]) return showToast("Fill all details");
+            if (!name || !price || !fileInput.files[0]) return showToast("Please fill all details");
             
             const btn = document.getElementById('uploadBtn');
             btn.disabled = true;
-            btn.innerText = "Wait...";
+            btn.innerText = "Uploading...";
             
             try {
                 const formData = new FormData();
@@ -456,13 +514,15 @@
                     n: name, p: price, cat: cat, img: clData.secure_url, timestamp: serverTimestamp() 
                 });
                 
-                showToast("Added Successfully");
+                showToast("Item Added Successfully ✅");
                 document.getElementById('itemName').value = '';
                 document.getElementById('itemPrice').value = '';
                 fileInput.value = '';
-                document.getElementById('lTag').innerHTML = `<i class="fas fa-camera text-lg mb-1"></i><span>Photo</span>`;
+                document.getElementById('lTag').innerHTML = `<i class="fas fa-camera text-xl mb-1"></i><span>Add Photo</span>`;
+                document.getElementById('lTag').classList.replace('border-green-400', 'border-yellow-300');
+                document.getElementById('lTag').classList.replace('bg-green-50', 'bg-yellow-50');
             } catch (e) { 
-                showToast("Upload Failed"); 
+                showToast("Upload Failed ❌"); 
             } finally { 
                 btn.disabled = false;
                 btn.innerText = "UPLOAD ITEM"; 
@@ -474,9 +534,9 @@
             document.getElementById('confirmDeleteBtn').onclick = async () => {
                 try {
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', id));
-                    showToast("Deleted");
+                    showToast("Item Deleted 🗑️");
                     window.closeDeleteModal();
-                } catch (e) { showToast("Error"); }
+                } catch (e) { showToast("Error deleting item"); }
             };
         };
 
