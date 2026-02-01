@@ -13,7 +13,7 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- ✅ FIXED: YOUR REAL FIREBASE CONFIG APPLIED ---
+        // --- Firebase Configuration ---
         const myCustomConfig = {
             apiKey: "AIzaSyD6UVUF180j-xGDzaVZ5fMD7JqG5DJI378",
             authDomain: "my-side-c276f.firebaseapp.com",
@@ -24,7 +24,6 @@
             measurementId: "G-QLHZ0RQ83W"
         };
 
-        // Logic to detect environment (Canvas vs GitHub)
         let firebaseConfig;
         if (typeof __firebase_config !== 'undefined' && __firebase_config !== "") {
             firebaseConfig = JSON.parse(__firebase_config);
@@ -50,7 +49,7 @@
             const toast = document.getElementById('toast');
             if (!toast) return;
             const bg = type === 'error' ? 'bg-red-600' : type === 'success' ? 'bg-green-600' : 'bg-blue-600';
-            toast.className = `fixed bottom-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-white font-bold shadow-2xl transition-all opacity-100 z-[100] ${bg}`;
+            toast.className = `fixed bottom-24 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-white text-sm font-bold shadow-2xl transition-all opacity-100 z-[100] ${bg} w-[90%] max-w-xs text-center`;
             toast.innerText = msg;
             setTimeout(() => { toast.classList.add('opacity-0'); }, 4000);
         };
@@ -70,7 +69,7 @@
                 }
             } catch (error) {
                 console.error("Auth Error:", error);
-                showToast("Connection Fail! Firebase rules check karein.", "error");
+                showToast("Connection Fail!", "error");
             }
         };
 
@@ -94,7 +93,6 @@
                     renderHistoryList();
                 }, (err) => {
                     console.error("Sync Error:", err);
-                    if(err.code === 'permission-denied') showToast("Database Rules update karein!", "error");
                 });
             });
         };
@@ -108,7 +106,7 @@
         };
 
         window.settleUdhaar = async (coll, id, type) => {
-            const res = confirm("Payment ho gayi?\n\nOK = Cash\nCancel = Bank (UPI)");
+            const res = confirm("Payment mil gayi?\n\nOK = Cash\nCancel = Bank (UPI)");
             const paymentMethod = res ? 'Cash' : 'UPI';
             try {
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', coll, id), {
@@ -124,19 +122,18 @@
             generateReport(); renderHistoryList();
         };
 
-        // Actions
         window.addSale = async () => {
             const item = document.getElementById('saleItem').value;
             const amount = parseFloat(document.getElementById('saleAmount').value);
             const mode = document.getElementById('saleMode').value;
             const customer = document.getElementById('saleCustomer').value || 'Walk-in';
             const entryDate = document.getElementById('saleDate').value;
-            if (!item || isNaN(amount)) return showToast("Details bharein", "error");
+            if (!item || isNaN(amount)) return showToast("Sahi details bharein", "error");
             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sales', Date.now().toString()), {
                 item, amount, mode, customer, timestamp: Date.now(), date: new Date(entryDate).toISOString()
             });
             document.getElementById('saleItem').value = ''; document.getElementById('saleAmount').value = '';
-            showToast("Sale Saved", "success");
+            showToast("Sale Recorded", "success");
         };
 
         window.addPurchase = async () => {
@@ -175,26 +172,25 @@
                 reason, amount, mode, timestamp: Date.now(), date: new Date(entryDate).toISOString()
             });
             document.getElementById('persReason').value = ''; document.getElementById('persAmount').value = '';
-            showToast("Personal Expense Saved", "success");
+            showToast("Personal Saved", "success");
         };
 
         window.deleteEntry = async (collectionName, id) => {
             if(!confirm("Pakka delete karna hai?")) return;
             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id));
-            showToast("Delete ho gaya.");
+            showToast("Uda diya gaya.");
         };
 
-        // UI Renders
         const renderSales = () => {
             const tbody = document.getElementById('salesTableBody');
             const filtered = sales.filter(s => (s.item || "").toLowerCase().includes(searchQuery) || (s.customer || "").toLowerCase().includes(searchQuery));
             document.getElementById('todayTotal').innerText = sales.filter(s => new Date(s.date).toDateString() === new Date().toDateString() && s.mode !== 'Udhaar').reduce((a,b)=>a+b.amount,0).toLocaleString('en-IN');
             tbody.innerHTML = filtered.slice(0, 10).map(s => `
                 <tr class="border-b">
-                    <td class="px-4 py-3"><div class="font-bold">${s.item}</div><div class="text-[10px] text-gray-400">${s.customer} • ${new Date(s.date).toLocaleDateString()}</div></td>
-                    <td class="px-2 py-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${s.mode==='Cash'?'bg-green-100 text-green-700':s.mode==='UPI'?'bg-blue-100 text-blue-700':'bg-amber-100 text-amber-700'}">${s.mode}</span></td>
-                    <td class="px-4 py-3 text-right font-bold">₹${s.amount}</td>
-                    <td class="px-2 py-3 text-center"><button onclick="deleteEntry('sales','${s.id}')" class="text-red-300">✕</button></td>
+                    <td class="px-3 py-4"><div class="font-bold text-sm">${s.item}</div><div class="text-[9px] text-gray-400">${s.customer} • ${new Date(s.date).toLocaleDateString()}</div></td>
+                    <td class="px-1 py-4"><span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold ${s.mode==='Cash'?'bg-green-100 text-green-700':s.mode==='UPI'?'bg-blue-100 text-blue-700':'bg-amber-100 text-amber-700'}">${s.mode}</span></td>
+                    <td class="px-3 py-4 text-right font-black text-sm text-slate-700">₹${s.amount}</td>
+                    <td class="px-2 py-4 text-center"><button onclick="deleteEntry('sales','${s.id}')" class="text-red-300 font-bold p-1">✕</button></td>
                 </tr>`).join('');
         };
 
@@ -202,10 +198,10 @@
             const filtered = purchases.filter(p => (p.supplier || "").toLowerCase().includes(searchQuery));
             document.getElementById('purchaseTableBody').innerHTML = filtered.slice(0, 10).map(p => `
                 <tr class="border-b">
-                    <td class="px-4 py-3"><div class="font-bold">${p.supplier}</div><div class="text-[10px] text-gray-400">${new Date(p.date).toLocaleDateString()}</div></td>
-                    <td class="px-2 py-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${p.mode==='Cash'?'bg-green-100 text-green-700':p.mode==='UPI'?'bg-blue-100 text-blue-700':'bg-amber-100 text-amber-700'}">${p.mode}</span></td>
-                    <td class="px-4 py-3 text-right font-bold">₹${p.amount}</td>
-                    <td class="px-2 py-3 text-center"><button onclick="deleteEntry('purchases','${p.id}')" class="text-red-300">✕</button></td>
+                    <td class="px-3 py-4"><div class="font-bold text-sm">${p.supplier}</div><div class="text-[9px] text-gray-400">${new Date(p.date).toLocaleDateString()}</div></td>
+                    <td class="px-1 py-4"><span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold ${p.mode==='Cash'?'bg-green-100 text-green-700':p.mode==='UPI'?'bg-blue-100 text-blue-700':'bg-amber-100 text-amber-700'}">${p.mode}</span></td>
+                    <td class="px-3 py-4 text-right font-black text-sm">₹${p.amount}</td>
+                    <td class="px-2 py-4 text-center"><button onclick="deleteEntry('purchases','${p.id}')" class="text-red-300">✕</button></td>
                 </tr>`).join('');
         };
 
@@ -213,10 +209,10 @@
             const filtered = expenses.filter(e => (e.reason || "").toLowerCase().includes(searchQuery));
             document.getElementById('expenseTableBody').innerHTML = filtered.slice(0, 10).map(e => `
                 <tr class="border-b">
-                    <td class="px-4 py-3"><div class="font-bold">${e.reason}</div><div class="text-[10px] text-gray-400">${new Date(e.date).toLocaleDateString()}</div></td>
-                    <td class="px-2 py-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${e.mode==='Cash'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700'}">${e.mode}</span></td>
-                    <td class="px-4 py-3 text-right font-bold">₹${e.amount}</td>
-                    <td class="px-2 py-3 text-center"><button onclick="deleteEntry('expenses','${e.id}')" class="text-red-300">✕</button></td>
+                    <td class="px-3 py-4"><div class="font-bold text-sm">${e.reason}</div><div class="text-[9px] text-gray-400">${new Date(e.date).toLocaleDateString()}</div></td>
+                    <td class="px-1 py-4"><span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold ${e.mode==='Cash'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700'}">${e.mode}</span></td>
+                    <td class="px-3 py-4 text-right font-black text-sm">₹${e.amount}</td>
+                    <td class="px-2 py-4 text-center"><button onclick="deleteEntry('expenses','${e.id}')" class="text-red-300">✕</button></td>
                 </tr>`).join('');
         };
 
@@ -224,10 +220,10 @@
             const filtered = personal.filter(e => (e.reason || "").toLowerCase().includes(searchQuery));
             document.getElementById('personalTableBody').innerHTML = filtered.slice(0, 10).map(e => `
                 <tr class="border-b">
-                    <td class="px-4 py-3"><div class="font-bold">${e.reason}</div><div class="text-[10px] text-gray-400">${new Date(e.date).toLocaleDateString()}</div></td>
-                    <td class="px-2 py-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${e.mode==='Cash'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700'}">${e.mode}</span></td>
-                    <td class="px-4 py-3 text-right font-bold">₹${e.amount}</td>
-                    <td class="px-2 py-3 text-center"><button onclick="deleteEntry('personal','${e.id}')" class="text-red-300">✕</button></td>
+                    <td class="px-3 py-4"><div class="font-bold text-sm">${e.reason}</div><div class="text-[9px] text-gray-400">${new Date(e.date).toLocaleDateString()}</div></td>
+                    <td class="px-1 py-4"><span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold ${e.mode==='Cash'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700'}">${e.mode}</span></td>
+                    <td class="px-3 py-4 text-right font-black text-sm">₹${e.amount}</td>
+                    <td class="px-2 py-4 text-center"><button onclick="deleteEntry('personal','${e.id}')" class="text-red-300">✕</button></td>
                 </tr>`).join('');
         };
 
@@ -248,11 +244,11 @@
                             <span class="text-[8px] font-black px-1.5 py-0.5 rounded ${item.type==='Bikri'?'bg-green-100 text-green-700':item.type==='Purchase'?'bg-blue-100 text-blue-700':item.type==='Personal'?'bg-orange-100 text-orange-700':'bg-red-100 text-red-700'} uppercase">${item.type}</span>
                             <span class="text-xs font-bold text-slate-800">${item.name}</span>
                         </div>
-                        <div class="text-[10px] text-slate-400 mt-1">${new Date(item.date).toLocaleDateString()}</div>
+                        <div class="text-[9px] text-slate-400 mt-1">${new Date(item.date).toLocaleDateString()}</div>
                     </div>
                     <div class="text-right">
                         <div class="text-sm font-black text-slate-900">₹${item.amount.toLocaleString('en-IN')}</div>
-                        <div class="text-[8px] font-bold text-slate-400 uppercase">${item.mode}</div>
+                        <div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">${item.mode}</div>
                     </div>
                 </div>`).join('');
         };
@@ -322,10 +318,10 @@
             if (udhaarList) {
                 udhaarList.innerHTML = '';
                 fSales.filter(s => s.mode === 'Udhaar').forEach(c => {
-                    udhaarList.innerHTML += `<div class="flex items-center justify-between border-b py-3 text-sm"><div><div class="font-bold">${c.customer}</div><div class="text-[10px] text-gray-400">${c.item}</div></div><div class="flex items-center gap-2"><span>₹${c.amount}</span><button onclick="settleUdhaar('sales','${c.id}','sale')" class="bg-green-600 text-white text-[9px] px-2 py-1 rounded">Clear</button></div></div>`;
+                    udhaarList.innerHTML += `<div class="flex items-center justify-between border-b py-3 text-sm"><div><div class="font-bold">${c.customer}</div><div class="text-[9px] text-gray-400 tracking-tighter">${c.item}</div></div><div class="flex items-center gap-2"><span class="font-bold">₹${c.amount}</span><button onclick="settleUdhaar('sales','${c.id}','sale')" class="bg-green-600 text-white text-[9px] px-2 py-1.5 rounded font-black uppercase">Clear</button></div></div>`;
                 });
                 fPurch.filter(p => p.mode === 'Udhaar').forEach(s => {
-                    udhaarList.innerHTML += `<div class="flex items-center justify-between border-b py-3 text-sm"><div><div class="font-bold">${s.supplier}</div><div class="text-[10px] text-gray-400">Stock</div></div><div class="flex items-center gap-2"><span class="text-red-600">₹${s.amount}</span><button onclick="settleUdhaar('purchases','${s.id}','purch')" class="bg-red-500 text-white text-[9px] px-2 py-1 rounded">Pay</button></div></div>`;
+                    udhaarList.innerHTML += `<div class="flex items-center justify-between border-b py-3 text-sm"><div><div class="font-bold">${s.supplier}</div><div class="text-[9px] text-gray-400 uppercase tracking-tighter italic">Stock</div></div><div class="flex items-center gap-2"><span class="text-red-600 font-bold">₹${s.amount}</span><button onclick="settleUdhaar('purchases','${s.id}','purch')" class="bg-red-500 text-white text-[9px] px-2 py-1.5 rounded font-black uppercase">Pay</button></div></div>`;
                 });
             }
         };
@@ -388,193 +384,211 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background: #f1f5f9; }
-        .tab-btn.active { border-bottom: 3px solid #facc15; }
+        body { font-family: 'Inter', sans-serif; background: #f1f5f9; -webkit-tap-highlight-color: transparent; }
+        .tab-btn.active { border-bottom: 4px solid #facc15; opacity: 1; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        input, select { font-size: 16px !important; }
-        .transition-all { transition: all 0.2s ease; }
+        input, select { font-size: 16px !important; outline: none; transition: all 0.2s; }
+        input:focus, select:focus { ring: 2px solid #16a34a; }
+        button { touch-action: manipulation; }
+        .transition-all { transition: all 0.3s ease; }
     </style>
 </head>
 <body class="h-[100dvh] flex flex-col overflow-hidden text-slate-800">
 
     <div id="toast" class="fixed opacity-0 pointer-events-none transition-all"></div>
+    
     <div id="loadingOverlay" class="fixed inset-0 bg-white/95 z-[60] flex items-center justify-center backdrop-blur-md">
         <div class="text-center">
-            <div class="animate-spin rounded-full h-8 w-8 border-4 border-green-600 border-t-transparent mx-auto mb-3"></div>
-            <p class="text-[10px] font-black uppercase tracking-widest text-green-700 italic">Syncing Cloud...</p>
+            <div class="animate-spin rounded-full h-10 w-10 border-4 border-green-600 border-t-transparent mx-auto mb-3"></div>
+            <p class="text-[10px] font-black uppercase tracking-[0.3em] text-green-700 italic">Syncing SJS Cloud</p>
         </div>
     </div>
 
     <!-- LOGIN -->
     <div id="loginOverlay" class="fixed inset-0 bg-green-950 flex flex-col items-center justify-center z-50 px-4">
-        <div class="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-sm text-center">
-            <h2 class="text-2xl font-black mb-6 italic uppercase tracking-tighter">SJS Selection</h2>
-            <input type="password" id="loginPass" class="w-full p-4 border-2 border-slate-100 rounded-2xl mb-4 text-center text-xl outline-none" placeholder="PIN">
-            <button onclick="attemptLogin()" class="w-full bg-green-700 text-white font-black py-4 rounded-2xl shadow-xl">UNLOCK</button>
+        <div class="bg-white p-8 rounded-[2.5rem] shadow-2xl w-full max-w-sm text-center">
+            <h2 class="text-3xl font-black mb-1 italic uppercase tracking-tighter text-slate-800">SJS Selection</h2>
+            <p class="text-[8px] font-black uppercase tracking-[0.5em] text-slate-400 mb-8">Cloud Manager</p>
+            <input type="password" id="loginPass" class="w-full p-5 border-2 border-slate-50 rounded-3xl mb-4 text-center text-2xl bg-slate-50 font-black tracking-[0.5em]" placeholder="PIN">
+            <button onclick="attemptLogin()" class="w-full bg-green-700 text-white font-black py-5 rounded-3xl shadow-xl active:scale-95 transition-all text-sm uppercase tracking-widest">Unlock App</button>
         </div>
     </div>
 
     <!-- HEADER -->
-    <header class="bg-green-700 text-white shrink-0 shadow-xl z-10">
+    <header class="bg-green-700 text-white shrink-0 shadow-xl z-10 pt-1">
         <div class="px-5 py-3 flex justify-between items-center">
-            <span class="font-black text-lg italic uppercase tracking-tighter">SJS Selection</span>
-            <button onclick="sessionStorage.clear(); location.reload();" class="text-[8px] font-black border border-white/20 px-3 py-1 rounded-full uppercase">Logout</button>
+            <span class="font-black text-xl italic uppercase tracking-tighter">SJS Manager</span>
+            <button onclick="sessionStorage.clear(); location.reload();" class="text-[9px] font-black border border-white/20 px-3 py-2 rounded-full uppercase tracking-tighter">Exit</button>
         </div>
+        <!-- Scrollable Tab Bar for Mobile -->
         <div class="flex overflow-x-auto no-scrollbar px-1 bg-green-700">
-            <button onclick="showTab('sell')" id="tab-sell" class="tab-btn active flex-1 py-3 text-[8px] font-black min-w-[65px]">SALES</button>
-            <button onclick="showTab('purchase')" id="tab-purchase" class="tab-btn flex-1 py-3 text-[8px] font-black min-w-[65px]">PURCHASE</button>
-            <button onclick="showTab('expense')" id="tab-expense" class="tab-btn flex-1 py-3 text-[8px] font-black min-w-[65px]">BIZ EXP</button>
-            <button onclick="showTab('personal')" id="tab-personal" class="tab-btn flex-1 py-3 text-[8px] font-black min-w-[65px]">PERSONAL</button>
-            <button onclick="showTab('history')" id="tab-history" class="tab-btn flex-1 py-3 text-[8px] font-black min-w-[65px]">HISTORY</button>
-            <button onclick="showTab('report')" id="tab-report" class="tab-btn flex-1 py-3 text-[8px] font-black min-w-[65px] border-l border-white/10">REPORT</button>
+            <button onclick="showTab('sell')" id="tab-sell" class="tab-btn active flex-1 py-3 text-[9px] font-black min-w-[70px] opacity-60">SALES</button>
+            <button onclick="showTab('purchase')" id="tab-purchase" class="tab-btn flex-1 py-3 text-[9px] font-black min-w-[75px] opacity-60">PURCHASE</button>
+            <button onclick="showTab('expense')" id="tab-expense" class="tab-btn flex-1 py-3 text-[9px] font-black min-w-[70px] opacity-60">BIZ EXP</button>
+            <button onclick="showTab('personal')" id="tab-personal" class="tab-btn flex-1 py-3 text-[9px] font-black min-w-[75px] opacity-60">PERSONAL</button>
+            <button onclick="showTab('history')" id="tab-history" class="tab-btn flex-1 py-3 text-[9px] font-black min-w-[70px] opacity-60">HISTORY</button>
+            <button onclick="showTab('report')" id="tab-report" class="tab-btn flex-1 py-3 text-[9px] font-black min-w-[70px] opacity-60 border-l border-white/10">REPORT</button>
         </div>
     </header>
 
     <main class="flex-1 overflow-y-auto p-4 bg-slate-100">
-        <div class="max-w-4xl mx-auto pb-16">
+        <div class="max-w-md mx-auto pb-20">
 
-            <!-- SALES -->
+            <!-- SALES SECTION -->
             <div id="view-sell" class="tab-content space-y-4">
-                <div class="bg-white p-5 rounded-3xl shadow-sm border space-y-3">
-                    <input type="date" id="saleDate" class="w-full p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
-                    <input type="text" id="saleItem" placeholder="Maal Ka Naam" class="w-full p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
+                <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3">
+                    <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">New Bikri Entry</label>
+                    <input type="date" id="saleDate" class="w-full p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100 font-bold">
+                    <input type="text" id="saleItem" placeholder="Maal Ka Naam (Jeans, Shirt)" class="w-full p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100">
                     <div class="grid grid-cols-2 gap-3">
-                        <input type="number" id="saleAmount" placeholder="Price ₹" class="p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
-                        <select id="saleMode" class="p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200 font-bold">
+                        <input type="number" id="saleAmount" placeholder="Price ₹" class="p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100 font-black">
+                        <select id="saleMode" class="p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100 font-black text-green-700">
                             <option value="Cash">Cash</option><option value="UPI">Bank/UPI</option><option value="Udhaar">Udhaar</option>
                         </select>
                     </div>
-                    <input type="text" id="saleCustomer" placeholder="Customer Name" class="w-full p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
-                    <button onclick="addSale()" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-xl">RECORD SALE</button>
+                    <input type="text" id="saleCustomer" placeholder="Customer Ka Naam" class="w-full p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100">
+                    <button onclick="addSale()" class="w-full bg-green-600 text-white font-black py-5 rounded-2xl shadow-xl active:scale-95 transition-all uppercase text-xs tracking-widest">Save Sale</button>
                 </div>
-                <div class="bg-white rounded-3xl shadow-sm border overflow-hidden">
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="p-4 border-b flex justify-between items-center bg-slate-50/50">
-                        <span class="text-[9px] font-black text-slate-400 uppercase">Today Cash</span>
-                        <span class="text-xl font-black text-green-700">₹<span id="todayTotal">0</span></span>
+                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">Today Nagar Total</span>
+                        <span class="text-2xl font-black text-green-700 tracking-tighter">₹<span id="todayTotal">0</span></span>
                     </div>
-                    <table class="w-full text-xs text-left"><tbody id="salesTableBody" class="divide-y"></tbody></table>
+                    <table class="w-full text-xs text-left"><tbody id="salesTableBody" class="divide-y divide-slate-50"></tbody></table>
                 </div>
             </div>
 
-            <!-- PURCHASE -->
+            <!-- PURCHASE SECTION -->
             <div id="view-purchase" class="tab-content hidden space-y-4">
                 <div class="bg-white p-5 rounded-3xl shadow-sm border space-y-3">
-                    <input type="date" id="purchDate" class="w-full p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
-                    <input type="text" id="purchSupplier" placeholder="Supplier / Party" class="w-full p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
+                    <input type="date" id="purchDate" class="w-full p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100 font-bold">
+                    <input type="text" id="purchSupplier" placeholder="Supplier / Party Name" class="w-full p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100">
                     <div class="grid grid-cols-2 gap-3">
-                        <input type="number" id="purchAmount" placeholder="Amount ₹" class="p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
-                        <select id="purchMode" class="p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200 font-bold">
-                            <option value="Cash">Cash</option><option value="UPI">UPI</option><option value="Udhaar">Udhaar (Dena)</option>
+                        <input type="number" id="purchAmount" placeholder="Amount ₹" class="p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100 font-black">
+                        <select id="purchMode" class="p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100 font-black text-blue-700">
+                            <option value="Cash">Cash</option><option value="UPI">UPI</option><option value="Udhaar">Udhaar</option>
                         </select>
                     </div>
-                    <button onclick="addPurchase()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl">LOG PURCHASE</button>
+                    <button onclick="addPurchase()" class="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-xs">Save Purchase</button>
                 </div>
-                <table class="w-full text-xs text-left bg-white rounded-3xl overflow-hidden shadow-sm"><tbody id="purchaseTableBody" class="divide-y"></tbody></table>
+                <div class="bg-white rounded-3xl shadow-sm overflow-hidden border border-slate-200">
+                    <table class="w-full text-xs text-left"><tbody id="purchaseTableBody" class="divide-y divide-slate-50"></tbody></table>
+                </div>
             </div>
 
             <!-- BUSINESS EXPENSES -->
             <div id="view-expense" class="tab-content hidden space-y-4">
                 <div class="bg-white p-5 rounded-3xl shadow-sm border space-y-3">
-                    <input type="date" id="expDate" class="w-full p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
-                    <input type="text" id="expReason" placeholder="Biz Reason (Rent, Bill, Tea)" class="w-full p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
+                    <input type="date" id="expDate" class="w-full p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100">
+                    <input type="text" id="expReason" placeholder="Biz Detail (Rent, Chai, Bijli)" class="w-full p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100">
                     <div class="grid grid-cols-2 gap-3">
-                        <input type="number" id="expAmount" placeholder="Amount ₹" class="p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
-                        <select id="expMode" class="p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200 font-bold">
+                        <input type="number" id="expAmount" placeholder="Amount ₹" class="p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100 font-black">
+                        <select id="expMode" class="p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100 font-bold">
                             <option value="Cash">Cash</option><option value="UPI">UPI</option>
                         </select>
                     </div>
-                    <button onclick="addExpense()" class="w-full bg-red-600 text-white font-black py-4 rounded-2xl shadow-xl">SAVE BIZ EXPENSE</button>
+                    <button onclick="addExpense()" class="w-full bg-red-600 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-xs">Save Expense</button>
                 </div>
-                <table class="w-full text-xs text-left bg-white rounded-3xl overflow-hidden shadow-sm"><tbody id="expenseTableBody" class="divide-y"></tbody></table>
+                <div class="bg-white rounded-3xl shadow-sm overflow-hidden border border-slate-200">
+                    <table class="w-full text-xs text-left"><tbody id="expenseTableBody" class="divide-y"></tbody></table>
+                </div>
             </div>
 
             <!-- PERSONAL EXPENSES -->
             <div id="view-personal" class="tab-content hidden space-y-4">
                 <div class="bg-white p-5 rounded-3xl shadow-sm border border-orange-100 space-y-3">
-                    <h2 class="text-[10px] font-black text-orange-600 uppercase tracking-widest ml-1">Personal / Ghar Ka Kharcha</h2>
-                    <input type="date" id="persDate" class="w-full p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
-                    <input type="text" id="persReason" placeholder="Reason (Ghar ration, mobile etc)" class="w-full p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
+                    <h2 class="text-[9px] font-black text-orange-600 uppercase tracking-widest ml-1">Personal / Ghar Ka Kharcha</h2>
+                    <input type="date" id="persDate" class="w-full p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100">
+                    <input type="text" id="persReason" placeholder="Reason (Ration, Mobile Recharge)" class="w-full p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100">
                     <div class="grid grid-cols-2 gap-3">
-                        <input type="number" id="persAmount" placeholder="Amount ₹" class="p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
-                        <select id="persMode" class="p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200 font-bold">
-                            <option value="Cash">Galle Se (Cash)</option><option value="UPI">Bank Se (UPI)</option>
+                        <input type="number" id="persAmount" placeholder="Amount ₹" class="p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100 font-black">
+                        <select id="persMode" class="p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100 font-bold">
+                            <option value="Cash">Cash</option><option value="UPI">UPI</option>
                         </select>
                     </div>
-                    <button onclick="addPersonal()" class="w-full bg-orange-600 text-white font-black py-4 rounded-2xl shadow-xl">SAVE PERSONAL</button>
+                    <button onclick="addPersonal()" class="w-full bg-orange-600 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-xs">Save Personal</button>
                 </div>
-                <table class="w-full text-xs text-left bg-white rounded-3xl overflow-hidden shadow-sm"><tbody id="personalTableBody" class="divide-y"></tbody></table>
+                <div class="bg-white rounded-3xl shadow-sm overflow-hidden border border-slate-200">
+                    <table class="w-full text-xs text-left"><tbody id="personalTableBody" class="divide-y"></tbody></table>
+                </div>
             </div>
 
-            <!-- HISTORY -->
-            <div id="view-history" class="tab-content hidden space-y-4">
-                <input type="text" oninput="handleSearch(this.value)" placeholder="Search history..." class="w-full p-4 bg-white rounded-2xl border-none shadow-sm text-xs outline-none">
-                <div id="fullHistoryList" class="space-y-2"></div>
+            <!-- HISTORY SECTION -->
+            <div id="view-history" class="tab-content hidden space-y-3">
+                <div class="relative sticky top-0 z-20">
+                    <span class="absolute left-4 top-4 text-slate-400">🔍</span>
+                    <input type="text" oninput="handleSearch(this.value)" placeholder="Search anything..." class="w-full pl-12 p-4 bg-white rounded-3xl border-none shadow-md text-sm">
+                </div>
+                <div id="fullHistoryList" class="space-y-2 pt-2"></div>
             </div>
 
-            <!-- REPORT -->
+            <!-- REPORT SECTION -->
             <div id="view-report" class="tab-content hidden space-y-4">
+                <!-- LIVE STATS -->
                 <div class="grid grid-cols-2 gap-3">
-                    <div class="bg-white p-5 rounded-[2rem] border-2 border-green-500 shadow-md">
-                        <p class="text-[10px] font-black text-green-600 uppercase mb-1 tracking-tighter italic">Live Today Sale</p>
-                        <h3 class="text-2xl font-black">₹<span id="liveTodayTotal">0</span></h3>
+                    <div class="bg-white p-5 rounded-[2rem] border-2 border-green-500 shadow-lg">
+                        <p class="text-[9px] font-black text-green-600 uppercase mb-1 tracking-tighter italic">Live Today</p>
+                        <h3 class="text-xl font-black text-slate-800 tracking-tighter">₹<span id="liveTodayTotal">0</span></h3>
                     </div>
-                    <div class="bg-white p-5 rounded-[2rem] border-2 border-blue-500 shadow-md">
-                        <p class="text-[10px] font-black text-blue-600 uppercase mb-1 tracking-tighter italic">Live Month Sale</p>
-                        <h3 class="text-2xl font-black">₹<span id="liveMonthTotal">0</span></h3>
+                    <div class="bg-white p-5 rounded-[2rem] border-2 border-blue-500 shadow-lg">
+                        <p class="text-[9px] font-black text-blue-600 uppercase mb-1 tracking-tighter italic">Live Month</p>
+                        <h3 class="text-xl font-black text-slate-800 tracking-tighter">₹<span id="liveMonthTotal">0</span></h3>
                     </div>
                 </div>
 
-                <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border">
-                    <div class="bg-slate-900 text-white p-6 rounded-[2rem] shadow-xl mb-6 text-center">
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Business Net Profit 💰</p>
-                        <h2 class="text-4xl font-black italic">₹<span id="rptNetProfit">0</span></h2>
-                        <p class="text-[8px] text-slate-500 mt-2 italic font-bold">Sales - Purchase - Biz Expenses</p>
+                <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
+                    <!-- PROFIT CARD -->
+                    <div class="bg-slate-900 text-white p-6 rounded-[2.2rem] shadow-2xl mb-8 text-center">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 italic">Net Business Profit 💰</p>
+                        <h2 class="text-4xl font-black tracking-tighter italic">₹<span id="rptNetProfit">0</span></h2>
+                        <div class="text-[8px] text-slate-500 mt-2 font-bold uppercase tracking-widest">(Sales - Purchase - Biz Exp)</div>
                     </div>
 
-                    <div class="flex gap-2 mb-6 overflow-x-auto no-scrollbar">
-                        <button id="btn-today" onclick="setReportPeriod('today')" class="period-btn px-6 py-2 rounded-full text-[9px] font-black bg-slate-100 text-slate-500">Today</button>
-                        <button id="btn-month" onclick="setReportPeriod('month')" class="period-btn active px-6 py-2 rounded-full text-[9px] font-black bg-green-700 text-white">This Month</button>
-                        <button id="btn-all" onclick="setReportPeriod('all')" class="period-btn px-6 py-2 rounded-full text-[9px] font-black bg-slate-100 text-slate-500">All History</button>
+                    <div class="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-1">
+                        <button id="btn-today" onclick="setReportPeriod('today')" class="period-btn px-6 py-2.5 rounded-full text-[9px] font-black bg-slate-100 text-slate-500 min-w-max uppercase tracking-tighter">Today</button>
+                        <button id="btn-month" onclick="setReportPeriod('month')" class="period-btn active px-6 py-2.5 rounded-full text-[9px] font-black bg-green-700 text-white min-w-max uppercase tracking-tighter">This Month</button>
+                        <button id="btn-all" onclick="setReportPeriod('all')" class="period-btn px-6 py-2.5 rounded-full text-[9px] font-black bg-slate-100 text-slate-500 min-w-max uppercase tracking-tighter">All Time</button>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="grid grid-cols-2 gap-4 mb-8">
                         <div class="bg-green-50 p-5 rounded-3xl border border-green-100">
-                            <p class="text-[9px] font-black text-green-600 uppercase">Cash (Galla)</p>
-                            <h3 class="text-lg font-black">₹<span id="rptCashHand">0</span></h3>
+                            <p class="text-[9px] font-black text-green-600 uppercase mb-1">Galla (Cash)</p>
+                            <h3 class="text-lg font-black text-slate-800 tracking-tighter">₹<span id="rptCashHand">0</span></h3>
                         </div>
                         <div class="bg-blue-50 p-5 rounded-3xl border border-blue-100">
-                            <p class="text-[9px] font-black text-blue-600 uppercase">Bank (UPI)</p>
-                            <h3 class="text-lg font-black">₹<span id="rptBank">0</span></h3>
+                            <p class="text-[9px] font-black text-blue-600 uppercase mb-1">Bank (UPI)</p>
+                            <h3 class="text-lg font-black text-slate-800 tracking-tighter">₹<span id="rptBank">0</span></h3>
                         </div>
                         <div class="bg-amber-50 p-5 rounded-3xl border border-amber-100">
-                            <p class="text-[9px] font-black text-amber-600 uppercase tracking-tighter">Lena Udhaar</p>
-                            <h3 class="text-lg font-black">₹<span id="rptLenaUdhaar">0</span></h3>
+                            <p class="text-[9px] font-black text-amber-600 uppercase mb-1">Lena Hai</p>
+                            <h3 class="text-lg font-black text-slate-800 tracking-tighter">₹<span id="rptLenaUdhaar">0</span></h3>
                         </div>
                         <div class="bg-red-50 p-5 rounded-3xl border border-red-100">
-                            <p class="text-[9px] font-black text-red-600 uppercase tracking-tighter">Dena Udhaar</p>
-                            <h3 class="text-lg font-black">₹<span id="rptDenaUdhaar">0</span></h3>
+                            <p class="text-[9px] font-black text-red-600 uppercase mb-1">Dena Hai</p>
+                            <h3 class="text-lg font-black text-slate-800 tracking-tighter">₹<span id="rptDenaUdhaar">0</span></h3>
                         </div>
                     </div>
 
-                    <div class="bg-orange-50 p-5 rounded-[2rem] border-2 border-orange-100 mb-6 flex justify-between items-center">
+                    <div class="bg-orange-50 p-5 rounded-[2rem] border border-orange-100 mb-8 flex justify-between items-center shadow-inner">
                         <div>
-                            <p class="text-[9px] font-black text-orange-600 uppercase mb-1 tracking-widest">Personal Use Total</p>
-                            <h3 class="text-xl font-black">₹<span id="rptPersonalTotal">0</span></h3>
+                            <p class="text-[9px] font-black text-orange-600 uppercase mb-1">Total Personal Use</p>
+                            <h3 class="text-xl font-black text-slate-800 tracking-tighter">₹<span id="rptPersonalTotal">0</span></h3>
                         </div>
-                        <span class="text-3xl grayscale opacity-30">🏠</span>
+                        <span class="text-3xl opacity-20 grayscale">🏠</span>
                     </div>
 
-                    <div class="bg-slate-50 p-6 rounded-[2rem] border">
-                        <h2 class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest italic">Udhaar Detail</h2>
+                    <div class="bg-slate-50 p-6 rounded-[2.2rem] border border-slate-200">
+                        <h2 class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest italic underline decoration-yellow-400 underline-offset-4">Active Udhaar List</h2>
                         <div id="udhaarDetailList" class="space-y-1"></div>
                     </div>
 
-                    <div class="mt-6">
-                        <select id="historyPeriod" class="w-full p-4 bg-slate-50 border rounded-2xl text-xs font-bold mb-2">
-                            <option value="1">Last 1 Month CSV</option>
-                            <option value="12">Last 12 Months CSV</option>
+                    <div class="mt-8 space-y-3">
+                        <select id="historyPeriod" class="w-full p-5 bg-white border border-slate-200 rounded-[1.5rem] text-xs font-black shadow-sm">
+                            <option value="1">History: Last 1 Month</option>
+                            <option value="12">History: Last 12 Months</option>
+                            <option value="36">History: Full 3 Years</option>
                         </select>
-                        <button onclick="downloadFullHistory(document.getElementById('historyPeriod').value)" class="w-full bg-slate-800 text-white p-4 rounded-2xl font-black text-xs uppercase tracking-widest">Get CA Report</button>
+                        <button onclick="downloadFullHistory(document.getElementById('historyPeriod').value)" class="w-full bg-slate-800 text-white p-5 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-slate-200 active:scale-95 transition-all">Get CSV Report</button>
                     </div>
                 </div>
             </div>
@@ -582,8 +596,8 @@
         </div>
     </main>
 
-    <footer class="p-4 text-center text-[8px] text-gray-400 uppercase tracking-[0.4em] bg-white border-t">
-        Enterprise Cloud Sync Active • Personal & Profit Tracking Enabled
+    <footer class="p-4 text-center text-[8px] text-gray-400 uppercase tracking-[0.4em] bg-white border-t z-10 shrink-0">
+        Enterprise Cloud Sync • Multi-Device Ready
     </footer>
 
 </body>
