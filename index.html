@@ -13,16 +13,37 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = JSON.parse(__firebase_config);
+        // --- IMPORTANT: FIREBASE SETUP ---
+        // Agar aap GitHub par chala rahe hain, toh niche diye gaye 'myCustomConfig' mein 
+        // apne Firebase Console > Project Settings se apni config copy karke paste karein.
+        
+        const myCustomConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Yeh logic check karta hai ki environment ki config hai ya aapki apni
+        let firebaseConfig;
+        if (typeof __firebase_config !== 'undefined') {
+            firebaseConfig = JSON.parse(__firebase_config);
+        } else {
+            firebaseConfig = myCustomConfig; 
+        }
+
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'sjs-manager-enterprise';
 
+        // State Management
         let sales = [];
         let purchases = [];
         let expenses = [];
-        let personal = []; // New state for personal expenses
+        let personal = [];
         let currentPeriod = 'month';
         let currentUser = null;
         let searchQuery = "";
@@ -48,7 +69,8 @@
                     await signInAnonymously(auth);
                 }
             } catch (error) {
-                showToast("Connection failed", "error");
+                console.error("Auth Error:", error);
+                showToast("Firebase Config check karein!", "error");
             }
         };
 
@@ -83,14 +105,14 @@
         };
 
         window.settleUdhaar = async (coll, id, type) => {
-            const res = confirm("Payment ho gayi?\n\nOK = Cash\nCancel = Bank (UPI)");
+            const res = confirm("Payment mil gayi?\n\nOK = Cash\nCancel = Bank (UPI)");
             const paymentMethod = res ? 'Cash' : 'UPI';
             try {
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', coll, id), {
                     mode: paymentMethod, settledAt: Date.now(), wasUdhaar: true
                 });
                 showToast(`Hisaab Clear!`, "success");
-            } catch (e) { showToast("Update fail ho gaya", "error"); }
+            } catch (e) { showToast("Error", "error"); }
         };
 
         window.handleSearch = (val) => {
@@ -156,7 +178,7 @@
         window.deleteEntry = async (collectionName, id) => {
             if(!confirm("Pakka delete karna hai?")) return;
             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id));
-            showToast("Uda diya gaya.");
+            showToast("Delete ho gaya.");
         };
 
         // UI Renders
@@ -211,11 +233,11 @@
             const combined = [
                 ...sales.map(s => ({ ...s, type: 'Bikri', name: s.customer })),
                 ...purchases.map(p => ({ ...p, type: 'Purchase', name: p.supplier })),
-                ...expenses.map(e => ({ ...e, type: 'Business Exp', name: e.reason })),
+                ...expenses.map(e => ({ ...e, type: 'Business', name: e.reason })),
                 ...personal.map(pers => ({ ...pers, type: 'Personal', name: pers.reason }))
             ].filter(item => (item.name || "").toLowerCase().includes(searchQuery))
              .sort((a, b) => new Date(b.date) - new Date(a.date));
-            if (!combined.length) { container.innerHTML = `<div class="p-10 text-center text-gray-400">No records found.</div>`; return; }
+            if (!combined.length) { container.innerHTML = `<div class="p-10 text-center text-gray-400">No records.</div>`; return; }
             container.innerHTML = combined.slice(0, 50).map(item => `
                 <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between mb-2">
                     <div class="flex flex-col">
@@ -263,24 +285,19 @@
             const sCash = fSales.filter(s => s.mode === 'Cash').reduce((a,b)=>a+b.amount,0);
             const sUPI = fSales.filter(s => s.mode === 'UPI').reduce((a,b)=>a+b.amount,0);
             const sUdhaar = fSales.filter(s => s.mode === 'Udhaar').reduce((a,b)=>a+b.amount,0);
-
             const pCash = fPurch.filter(p => p.mode === 'Cash').reduce((a,b)=>a+b.amount,0);
             const pUPI = fPurch.filter(p => p.mode === 'UPI').reduce((a,b)=>a+b.amount,0);
             const pUdhaar = fPurch.filter(p => p.mode === 'Udhaar').reduce((a,b)=>a+b.amount,0);
-
             const eCash = fExp.filter(e => e.mode === 'Cash').reduce((a,b)=>a+b.amount,0);
             const eUPI = fExp.filter(e => e.mode === 'UPI').reduce((a,b)=>a+b.amount,0);
-
             const persCash = fPers.filter(p => p.mode === 'Cash').reduce((a,b)=>a+b.amount,0);
             const persUPI = fPers.filter(p => p.mode === 'UPI').reduce((a,b)=>a+b.amount,0);
 
-            // Galla (Real Balance)
             document.getElementById('rptCashHand').innerText = (sCash - pCash - eCash - persCash).toLocaleString('en-IN');
             document.getElementById('rptBank').innerText = (sUPI - pUPI - eUPI - persUPI).toLocaleString('en-IN');
             document.getElementById('rptLenaUdhaar').innerText = sUdhaar.toLocaleString('en-IN');
             document.getElementById('rptDenaUdhaar').innerText = pUdhaar.toLocaleString('en-IN');
             
-            // Business Logic: Profit = Sales - Purchases - Business Expenses
             const totalRevenue = fSales.reduce((a,b)=>a+b.amount,0);
             const totalStockCost = fPurch.reduce((a,b)=>a+b.amount,0);
             const totalBizExp = fExp.reduce((a,b)=>a+b.amount,0);
@@ -307,8 +324,8 @@
             const all = [
                 ...sales.filter(filter).map(s => `"${new Date(s.date).toISOString().split('T')[0]}",SALE,"${s.customer}","${s.item}",${s.amount},"${s.mode}","${s.wasUdhaar ? 'YES' : 'NO'}"`),
                 ...purchases.filter(filter).map(p => `"${new Date(p.date).toISOString().split('T')[0]}",PURCHASE,"${p.supplier}","-",${p.amount},"${p.mode}","${p.wasUdhaar ? 'YES' : 'NO'}"`),
-                ...expenses.filter(filter).map(e => `"${new Date(e.date).toISOString().split('T')[0]}",BUSINESS_EXPENSE,"-","${e.reason}",${e.amount},"${e.mode}","-"`),
-                ...personal.filter(filter).map(e => `"${new Date(e.date).toISOString().split('T')[0]}",PERSONAL_KHARCHA,"-","${e.reason}",${e.amount},"${e.mode}","-"`)
+                ...expenses.filter(filter).map(e => `"${new Date(e.date).toISOString().split('T')[0]}",BIZ_EXPENSE,"-","${e.reason}",${e.amount},"${e.mode}","-"`),
+                ...personal.filter(filter).map(e => `"${new Date(e.date).toISOString().split('T')[0]}",PERSONAL,"-","${e.reason}",${e.amount},"${e.mode}","-"`)
             ];
             csv += all.join("\n");
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -384,7 +401,7 @@
         <div class="flex overflow-x-auto no-scrollbar px-1 bg-green-700">
             <button onclick="showTab('sell')" id="tab-sell" class="tab-btn active flex-1 py-3 text-[8px] font-black min-w-[65px]">SALES</button>
             <button onclick="showTab('purchase')" id="tab-purchase" class="tab-btn flex-1 py-3 text-[8px] font-black min-w-[65px]">PURCHASE</button>
-            <button onclick="showTab('expense')" id="tab-expense" class="tab-btn flex-1 py-3 text-[8px] font-black min-w-[65px]">BUSINESS</button>
+            <button onclick="showTab('expense')" id="tab-expense" class="tab-btn flex-1 py-3 text-[8px] font-black min-w-[65px]">BIZ EXP</button>
             <button onclick="showTab('personal')" id="tab-personal" class="tab-btn flex-1 py-3 text-[8px] font-black min-w-[65px]">PERSONAL</button>
             <button onclick="showTab('history')" id="tab-history" class="tab-btn flex-1 py-3 text-[8px] font-black min-w-[65px]">HISTORY</button>
             <button onclick="showTab('report')" id="tab-report" class="tab-btn flex-1 py-3 text-[8px] font-black min-w-[65px] border-l border-white/10">REPORT</button>
@@ -449,12 +466,12 @@
                 <table class="w-full text-xs text-left bg-white rounded-3xl overflow-hidden shadow-sm"><tbody id="expenseTableBody" class="divide-y"></tbody></table>
             </div>
 
-            <!-- PERSONAL EXPENSES (NEW) -->
+            <!-- PERSONAL EXPENSES -->
             <div id="view-personal" class="tab-content hidden space-y-4">
                 <div class="bg-white p-5 rounded-3xl shadow-sm border border-orange-100 space-y-3">
                     <h2 class="text-[10px] font-black text-orange-600 uppercase tracking-widest ml-1">Personal / Ghar Ka Kharcha</h2>
                     <input type="date" id="persDate" class="w-full p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
-                    <input type="text" id="persReason" placeholder="Reason (Ghar ka ration, Mobile recharge)" class="w-full p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
+                    <input type="text" id="persReason" placeholder="Reason (Ghar ration, mobile etc)" class="w-full p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
                     <div class="grid grid-cols-2 gap-3">
                         <input type="number" id="persAmount" placeholder="Amount ₹" class="p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
                         <select id="persMode" class="p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200 font-bold">
@@ -486,17 +503,16 @@
                 </div>
 
                 <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border">
-                    <!-- Net Profit Card (NEW) -->
                     <div class="bg-slate-900 text-white p-6 rounded-[2rem] shadow-xl mb-6 text-center">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Business Net Profit 💰</p>
                         <h2 class="text-4xl font-black italic">₹<span id="rptNetProfit">0</span></h2>
-                        <p class="text-[8px] text-slate-500 mt-2 italic font-bold">Calculation: Sales - Purchase - Business Expenses</p>
+                        <p class="text-[8px] text-slate-500 mt-2 italic font-bold">Sales - Purchase - Biz Expenses</p>
                     </div>
 
                     <div class="flex gap-2 mb-6 overflow-x-auto no-scrollbar">
                         <button id="btn-today" onclick="setReportPeriod('today')" class="period-btn px-6 py-2 rounded-full text-[9px] font-black bg-slate-100 text-slate-500">Today</button>
                         <button id="btn-month" onclick="setReportPeriod('month')" class="period-btn active px-6 py-2 rounded-full text-[9px] font-black bg-green-700 text-white">This Month</button>
-                        <button id="btn-all" onclick="setReportPeriod('all')" class="period-btn px-6 py-2 rounded-full text-[9px] font-black bg-slate-100 text-slate-500">All History</button>
+                        <button id="btn-all" onclick="setReportPeriod('all')" class="period-btn px-6 py-2 rounded-full text-[9px] font-black bg-slate-100 text-slate-500">All Time</button>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4 mb-6">
@@ -509,35 +525,34 @@
                             <h3 class="text-lg font-black">₹<span id="rptBank">0</span></h3>
                         </div>
                         <div class="bg-amber-50 p-5 rounded-3xl border border-amber-100">
-                            <p class="text-[9px] font-black text-amber-600 uppercase tracking-tighter">Lena (Udhaar)</p>
+                            <p class="text-[9px] font-black text-amber-600 uppercase">Lena Udhaar</p>
                             <h3 class="text-lg font-black">₹<span id="rptLenaUdhaar">0</span></h3>
                         </div>
                         <div class="bg-red-50 p-5 rounded-3xl border border-red-100">
-                            <p class="text-[9px] font-black text-red-600 uppercase tracking-tighter">Dena (Udhaar)</p>
+                            <p class="text-[9px] font-black text-red-600 uppercase">Dena Udhaar</p>
                             <h3 class="text-lg font-black">₹<span id="rptDenaUdhaar">0</span></h3>
                         </div>
                     </div>
 
-                    <!-- Personal Kharcha Stats (NEW) -->
                     <div class="bg-orange-50 p-5 rounded-[2rem] border-2 border-orange-100 mb-6 flex justify-between items-center">
                         <div>
-                            <p class="text-[9px] font-black text-orange-600 uppercase mb-1">Personal / Ghar Use</p>
+                            <p class="text-[9px] font-black text-orange-600 uppercase mb-1">Personal Use Total</p>
                             <h3 class="text-xl font-black">₹<span id="rptPersonalTotal">0</span></h3>
                         </div>
                         <span class="text-3xl grayscale opacity-30">🏠</span>
                     </div>
 
                     <div class="bg-slate-50 p-6 rounded-[2rem] border">
-                        <h2 class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest italic">Udhaar List</h2>
+                        <h2 class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest italic">Udhaar Detail</h2>
                         <div id="udhaarDetailList" class="space-y-1"></div>
                     </div>
 
                     <div class="mt-6">
                         <select id="historyPeriod" class="w-full p-4 bg-slate-50 border rounded-2xl text-xs font-bold mb-2">
-                            <option value="1">Download Last 1 Month CSV</option>
-                            <option value="12">Download Last 12 Months CSV</option>
+                            <option value="1">Last 1 Month CSV</option>
+                            <option value="12">Last 12 Months CSV</option>
                         </select>
-                        <button onclick="downloadFullHistory(document.getElementById('historyPeriod').value)" class="w-full bg-slate-800 text-white p-4 rounded-2xl font-black text-xs">GET DATA FOR CA</button>
+                        <button onclick="downloadFullHistory(document.getElementById('historyPeriod').value)" class="w-full bg-slate-800 text-white p-4 rounded-2xl font-black text-xs">DOWNLOAD DATA</button>
                     </div>
                 </div>
             </div>
@@ -546,7 +561,7 @@
     </main>
 
     <footer class="p-4 text-center text-[8px] text-gray-400 uppercase tracking-[0.4em] bg-white border-t">
-        Cloud Enterprise Sync • Multi-Million Record Storage Active
+        Cloud Enterprise Sync Active • Personal & Profit Tracking Enabled
     </footer>
 
 </body>
