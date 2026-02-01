@@ -13,38 +13,28 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- ⚠️ ATTENTION: SET YOUR CONFIG HERE FOR GITHUB ⚠️ ---
-        // Jab aap GitHub par is app ko host karte hain, toh aapko apni real Firebase Config yahan daalni hogi.
-        // Firebase Console > Project Settings > General > Your Apps mein se ise copy karein.
-        
+        // --- ✅ FIXED: YOUR REAL FIREBASE CONFIG APPLIED ---
         const myCustomConfig = {
-            apiKey: "YOUR_REAL_API_KEY", // Yahan apni API Key dalein
-            authDomain: "YOUR_PROJECT.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT.appspot.com",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyD6UVUF180j-xGDzaVZ5fMD7JqG5DJI378",
+            authDomain: "my-side-c276f.firebaseapp.com",
+            projectId: "my-side-c276f",
+            storageBucket: "my-side-c276f.firebasestorage.app",
+            messagingSenderId: "871086402542",
+            appId: "1:871086402542:web:9544b1b5dc730ebe4ebcff",
+            measurementId: "G-QLHZ0RQ83W"
         };
 
-        // Logic to detect environment
+        // Logic to detect environment (Canvas vs GitHub)
         let firebaseConfig;
         if (typeof __firebase_config !== 'undefined' && __firebase_config !== "") {
-            // Yeh sirf Gemini Canvas environment mein kaam karega
             firebaseConfig = JSON.parse(__firebase_config);
         } else {
-            // Yeh aapke GitHub/Production environment ke liye hai
             firebaseConfig = myCustomConfig; 
         }
 
-        let app, auth, db;
-        try {
-            app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-        } catch (e) {
-            console.error("Firebase Init Error:", e);
-        }
-
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'sjs-manager-enterprise';
 
         // State Management
@@ -71,11 +61,6 @@
         };
 
         const initAuth = async () => {
-            if (!auth) {
-                showToast("Firebase Config check karein! (GitHub settings missing)", "error");
-                toggleLoading(false);
-                return;
-            }
             toggleLoading(true);
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -85,8 +70,7 @@
                 }
             } catch (error) {
                 console.error("Auth Error:", error);
-                // Agar GitHub par chal raha hai aur keys fake hain, toh ye message aayega
-                showToast("Connection Fail! Firebase keys update karein.", "error");
+                showToast("Connection Fail! Firebase rules check karein.", "error");
             }
         };
 
@@ -97,7 +81,7 @@
         });
 
         const setupRealtimeListeners = () => {
-            if (!currentUser || !db) return;
+            if (!currentUser) return;
             const collections = ['sales', 'purchases', 'expenses', 'personal'];
             collections.forEach(path => {
                 onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', path), (snap) => {
@@ -110,9 +94,7 @@
                     renderHistoryList();
                 }, (err) => {
                     console.error("Sync Error:", err);
-                    if(err.code === 'permission-denied') {
-                        showToast("Database rules update karein!", "error");
-                    }
+                    if(err.code === 'permission-denied') showToast("Database Rules update karein!", "error");
                 });
             });
         };
@@ -126,7 +108,7 @@
         };
 
         window.settleUdhaar = async (coll, id, type) => {
-            const res = confirm("Payment mil gayi?\n\nOK = Cash\nCancel = Bank (UPI)");
+            const res = confirm("Payment ho gayi?\n\nOK = Cash\nCancel = Bank (UPI)");
             const paymentMethod = res ? 'Cash' : 'UPI';
             try {
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', coll, id), {
@@ -419,7 +401,7 @@
     <div id="loadingOverlay" class="fixed inset-0 bg-white/95 z-[60] flex items-center justify-center backdrop-blur-md">
         <div class="text-center">
             <div class="animate-spin rounded-full h-8 w-8 border-4 border-green-600 border-t-transparent mx-auto mb-3"></div>
-            <p class="text-[10px] font-black uppercase tracking-widest text-green-700 italic">Syncing SJS Cloud...</p>
+            <p class="text-[10px] font-black uppercase tracking-widest text-green-700 italic">Syncing Cloud...</p>
         </div>
     </div>
 
@@ -428,7 +410,7 @@
         <div class="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-sm text-center">
             <h2 class="text-2xl font-black mb-6 italic uppercase tracking-tighter">SJS Selection</h2>
             <input type="password" id="loginPass" class="w-full p-4 border-2 border-slate-100 rounded-2xl mb-4 text-center text-xl outline-none" placeholder="PIN">
-            <button onclick="attemptLogin()" class="w-full bg-green-700 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-green-800 transition-all">UNLOCK</button>
+            <button onclick="attemptLogin()" class="w-full bg-green-700 text-white font-black py-4 rounded-2xl shadow-xl">UNLOCK</button>
         </div>
     </div>
 
@@ -463,7 +445,7 @@
                         </select>
                     </div>
                     <input type="text" id="saleCustomer" placeholder="Customer Name" class="w-full p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
-                    <button onclick="addSale()" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-xl active:scale-95 transition-all">RECORD SALE</button>
+                    <button onclick="addSale()" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-xl">RECORD SALE</button>
                 </div>
                 <div class="bg-white rounded-3xl shadow-sm border overflow-hidden">
                     <div class="p-4 border-b flex justify-between items-center bg-slate-50/50">
@@ -589,8 +571,8 @@
 
                     <div class="mt-6">
                         <select id="historyPeriod" class="w-full p-4 bg-slate-50 border rounded-2xl text-xs font-bold mb-2">
-                            <option value="1">Download Last 1 Month CSV</option>
-                            <option value="12">Download Last 12 Months CSV</option>
+                            <option value="1">Last 1 Month CSV</option>
+                            <option value="12">Last 12 Months CSV</option>
                         </select>
                         <button onclick="downloadFullHistory(document.getElementById('historyPeriod').value)" class="w-full bg-slate-800 text-white p-4 rounded-2xl font-black text-xs uppercase tracking-widest">Get CA Report</button>
                     </div>
@@ -601,7 +583,7 @@
     </main>
 
     <footer class="p-4 text-center text-[8px] text-gray-400 uppercase tracking-[0.4em] bg-white border-t">
-        Enterprise Cloud Sync • Multi-Device Storage Active
+        Enterprise Cloud Sync Active • Personal & Profit Tracking Enabled
     </footer>
 
 </body>
