@@ -13,12 +13,12 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- IMPORTANT: FIREBASE SETUP ---
-        // Agar aap GitHub par chala rahe hain, toh niche diye gaye 'myCustomConfig' mein 
-        // apne Firebase Console > Project Settings se apni config copy karke paste karein.
+        // --- ⚠️ ATTENTION: SET YOUR CONFIG HERE FOR GITHUB ⚠️ ---
+        // Jab aap GitHub par is app ko host karte hain, toh aapko apni real Firebase Config yahan daalni hogi.
+        // Firebase Console > Project Settings > General > Your Apps mein se ise copy karein.
         
         const myCustomConfig = {
-            apiKey: "YOUR_API_KEY",
+            apiKey: "YOUR_REAL_API_KEY", // Yahan apni API Key dalein
             authDomain: "YOUR_PROJECT.firebaseapp.com",
             projectId: "YOUR_PROJECT_ID",
             storageBucket: "YOUR_PROJECT.appspot.com",
@@ -26,17 +26,25 @@
             appId: "YOUR_APP_ID"
         };
 
-        // Yeh logic check karta hai ki environment ki config hai ya aapki apni
+        // Logic to detect environment
         let firebaseConfig;
-        if (typeof __firebase_config !== 'undefined') {
+        if (typeof __firebase_config !== 'undefined' && __firebase_config !== "") {
+            // Yeh sirf Gemini Canvas environment mein kaam karega
             firebaseConfig = JSON.parse(__firebase_config);
         } else {
+            // Yeh aapke GitHub/Production environment ke liye hai
             firebaseConfig = myCustomConfig; 
         }
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        let app, auth, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (e) {
+            console.error("Firebase Init Error:", e);
+        }
+
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'sjs-manager-enterprise';
 
         // State Management
@@ -50,17 +58,24 @@
 
         const showToast = (msg, type = 'info') => {
             const toast = document.getElementById('toast');
+            if (!toast) return;
             const bg = type === 'error' ? 'bg-red-600' : type === 'success' ? 'bg-green-600' : 'bg-blue-600';
             toast.className = `fixed bottom-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-white font-bold shadow-2xl transition-all opacity-100 z-[100] ${bg}`;
             toast.innerText = msg;
-            setTimeout(() => { toast.classList.add('opacity-0'); }, 3000);
+            setTimeout(() => { toast.classList.add('opacity-0'); }, 4000);
         };
 
         const toggleLoading = (show) => {
-            document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+            const loader = document.getElementById('loadingOverlay');
+            if (loader) loader.style.display = show ? 'flex' : 'none';
         };
 
         const initAuth = async () => {
+            if (!auth) {
+                showToast("Firebase Config check karein! (GitHub settings missing)", "error");
+                toggleLoading(false);
+                return;
+            }
             toggleLoading(true);
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -70,7 +85,8 @@
                 }
             } catch (error) {
                 console.error("Auth Error:", error);
-                showToast("Firebase Config check karein!", "error");
+                // Agar GitHub par chal raha hai aur keys fake hain, toh ye message aayega
+                showToast("Connection Fail! Firebase keys update karein.", "error");
             }
         };
 
@@ -81,7 +97,7 @@
         });
 
         const setupRealtimeListeners = () => {
-            if (!currentUser) return;
+            if (!currentUser || !db) return;
             const collections = ['sales', 'purchases', 'expenses', 'personal'];
             collections.forEach(path => {
                 onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', path), (snap) => {
@@ -92,6 +108,11 @@
                     if(path === 'personal') { personal = data; renderPersonal(); }
                     generateReport();
                     renderHistoryList();
+                }, (err) => {
+                    console.error("Sync Error:", err);
+                    if(err.code === 'permission-denied') {
+                        showToast("Database rules update karein!", "error");
+                    }
                 });
             });
         };
@@ -112,7 +133,7 @@
                     mode: paymentMethod, settledAt: Date.now(), wasUdhaar: true
                 });
                 showToast(`Hisaab Clear!`, "success");
-            } catch (e) { showToast("Error", "error"); }
+            } catch (e) { showToast("Update fail ho gaya", "error"); }
         };
 
         window.handleSearch = (val) => {
@@ -266,8 +287,10 @@
                 return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
             }).reduce((a,b)=>a+b.amount,0);
 
-            document.getElementById('liveTodayTotal').innerText = liveTodaySale.toLocaleString('en-IN');
-            document.getElementById('liveMonthTotal').innerText = liveMonthSale.toLocaleString('en-IN');
+            const lt = document.getElementById('liveTodayTotal');
+            const lm = document.getElementById('liveMonthTotal');
+            if (lt) lt.innerText = liveTodaySale.toLocaleString('en-IN');
+            if (lm) lm.innerText = liveMonthSale.toLocaleString('en-IN');
 
             const filterByPeriod = (dStr) => {
                 const d = new Date(dStr);
@@ -285,35 +308,44 @@
             const sCash = fSales.filter(s => s.mode === 'Cash').reduce((a,b)=>a+b.amount,0);
             const sUPI = fSales.filter(s => s.mode === 'UPI').reduce((a,b)=>a+b.amount,0);
             const sUdhaar = fSales.filter(s => s.mode === 'Udhaar').reduce((a,b)=>a+b.amount,0);
+
             const pCash = fPurch.filter(p => p.mode === 'Cash').reduce((a,b)=>a+b.amount,0);
             const pUPI = fPurch.filter(p => p.mode === 'UPI').reduce((a,b)=>a+b.amount,0);
             const pUdhaar = fPurch.filter(p => p.mode === 'Udhaar').reduce((a,b)=>a+b.amount,0);
+
             const eCash = fExp.filter(e => e.mode === 'Cash').reduce((a,b)=>a+b.amount,0);
             const eUPI = fExp.filter(e => e.mode === 'UPI').reduce((a,b)=>a+b.amount,0);
             const persCash = fPers.filter(p => p.mode === 'Cash').reduce((a,b)=>a+b.amount,0);
             const persUPI = fPers.filter(p => p.mode === 'UPI').reduce((a,b)=>a+b.amount,0);
 
-            document.getElementById('rptCashHand').innerText = (sCash - pCash - eCash - persCash).toLocaleString('en-IN');
-            document.getElementById('rptBank').innerText = (sUPI - pUPI - eUPI - persUPI).toLocaleString('en-IN');
-            document.getElementById('rptLenaUdhaar').innerText = sUdhaar.toLocaleString('en-IN');
-            document.getElementById('rptDenaUdhaar').innerText = pUdhaar.toLocaleString('en-IN');
+            const rh = document.getElementById('rptCashHand');
+            const rb = document.getElementById('rptBank');
+            const rl = document.getElementById('rptLenaUdhaar');
+            const rd = document.getElementById('rptDenaUdhaar');
+            const rnp = document.getElementById('rptNetProfit');
+            const rpt = document.getElementById('rptPersonalTotal');
+
+            if (rh) rh.innerText = (sCash - pCash - eCash - persCash).toLocaleString('en-IN');
+            if (rb) rb.innerText = (sUPI - pUPI - eUPI - persUPI).toLocaleString('en-IN');
+            if (rl) rl.innerText = sUdhaar.toLocaleString('en-IN');
+            if (rd) rd.innerText = pUdhaar.toLocaleString('en-IN');
             
             const totalRevenue = fSales.reduce((a,b)=>a+b.amount,0);
             const totalStockCost = fPurch.reduce((a,b)=>a+b.amount,0);
             const totalBizExp = fExp.reduce((a,b)=>a+b.amount,0);
-            const netProfit = totalRevenue - totalStockCost - totalBizExp;
-
-            document.getElementById('rptNetProfit').innerText = netProfit.toLocaleString('en-IN');
-            document.getElementById('rptPersonalTotal').innerText = fPers.reduce((a,b)=>a+b.amount,0).toLocaleString('en-IN');
+            if (rnp) rnp.innerText = (totalRevenue - totalStockCost - totalBizExp).toLocaleString('en-IN');
+            if (rpt) rpt.innerText = fPers.reduce((a,b)=>a+b.amount,0).toLocaleString('en-IN');
 
             const udhaarList = document.getElementById('udhaarDetailList');
-            udhaarList.innerHTML = '';
-            fSales.filter(s => s.mode === 'Udhaar').forEach(c => {
-                udhaarList.innerHTML += `<div class="flex items-center justify-between border-b py-3 text-sm"><div><div class="font-bold">${c.customer}</div><div class="text-[10px] text-gray-400">${c.item}</div></div><div class="flex items-center gap-2"><span>₹${c.amount}</span><button onclick="settleUdhaar('sales','${c.id}','sale')" class="bg-green-600 text-white text-[9px] px-2 py-1 rounded">Clear</button></div></div>`;
-            });
-            fPurch.filter(p => p.mode === 'Udhaar').forEach(s => {
-                udhaarList.innerHTML += `<div class="flex items-center justify-between border-b py-3 text-sm"><div><div class="font-bold">${s.supplier}</div><div class="text-[10px] text-gray-400">Stock</div></div><div class="flex items-center gap-2"><span class="text-red-600">₹${s.amount}</span><button onclick="settleUdhaar('purchases','${s.id}','purch')" class="bg-red-500 text-white text-[9px] px-2 py-1 rounded">Pay</button></div></div>`;
-            });
+            if (udhaarList) {
+                udhaarList.innerHTML = '';
+                fSales.filter(s => s.mode === 'Udhaar').forEach(c => {
+                    udhaarList.innerHTML += `<div class="flex items-center justify-between border-b py-3 text-sm"><div><div class="font-bold">${c.customer}</div><div class="text-[10px] text-gray-400">${c.item}</div></div><div class="flex items-center gap-2"><span>₹${c.amount}</span><button onclick="settleUdhaar('sales','${c.id}','sale')" class="bg-green-600 text-white text-[9px] px-2 py-1 rounded">Clear</button></div></div>`;
+                });
+                fPurch.filter(p => p.mode === 'Udhaar').forEach(s => {
+                    udhaarList.innerHTML += `<div class="flex items-center justify-between border-b py-3 text-sm"><div><div class="font-bold">${s.supplier}</div><div class="text-[10px] text-gray-400">Stock</div></div><div class="flex items-center gap-2"><span class="text-red-600">₹${s.amount}</span><button onclick="settleUdhaar('purchases','${s.id}','purch')" class="bg-red-500 text-white text-[9px] px-2 py-1 rounded">Pay</button></div></div>`;
+                });
+            }
         };
 
         window.downloadFullHistory = (months) => {
@@ -339,15 +371,18 @@
         window.setReportPeriod = (p) => { 
             currentPeriod = p; 
             document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('bg-green-700','text-white'));
-            document.getElementById('btn-'+p).classList.add('bg-green-700','text-white');
+            const btn = document.getElementById('btn-'+p);
+            if (btn) btn.classList.add('bg-green-700','text-white');
             generateReport(); 
         };
         
         window.showTab = (t) => {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active','bg-green-800'));
-            document.getElementById('view-'+t).classList.remove('hidden');
-            document.getElementById('tab-'+t).classList.add('active','bg-green-800');
+            const view = document.getElementById('view-'+t);
+            const tab = document.getElementById('tab-'+t);
+            if (view) view.classList.remove('hidden');
+            if (tab) tab.classList.add('active','bg-green-800');
             if(t === 'report') generateReport();
             if(t === 'history') renderHistoryList();
         };
@@ -361,7 +396,12 @@
         };
 
         initAuth();
-        window.onload = setDefaultDates;
+        window.onload = () => {
+            setDefaultDates();
+            if(sessionStorage.getItem('isLoggedIn') === 'true') {
+                document.getElementById('loginOverlay').classList.add('hidden');
+            }
+        };
     </script>
 
     <style>
@@ -379,7 +419,7 @@
     <div id="loadingOverlay" class="fixed inset-0 bg-white/95 z-[60] flex items-center justify-center backdrop-blur-md">
         <div class="text-center">
             <div class="animate-spin rounded-full h-8 w-8 border-4 border-green-600 border-t-transparent mx-auto mb-3"></div>
-            <p class="text-[10px] font-black uppercase tracking-widest text-green-700">Syncing Cloud...</p>
+            <p class="text-[10px] font-black uppercase tracking-widest text-green-700 italic">Syncing SJS Cloud...</p>
         </div>
     </div>
 
@@ -388,7 +428,7 @@
         <div class="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-sm text-center">
             <h2 class="text-2xl font-black mb-6 italic uppercase tracking-tighter">SJS Selection</h2>
             <input type="password" id="loginPass" class="w-full p-4 border-2 border-slate-100 rounded-2xl mb-4 text-center text-xl outline-none" placeholder="PIN">
-            <button onclick="attemptLogin()" class="w-full bg-green-700 text-white font-black py-4 rounded-2xl shadow-xl">UNLOCK</button>
+            <button onclick="attemptLogin()" class="w-full bg-green-700 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-green-800 transition-all">UNLOCK</button>
         </div>
     </div>
 
@@ -423,7 +463,7 @@
                         </select>
                     </div>
                     <input type="text" id="saleCustomer" placeholder="Customer Name" class="w-full p-3.5 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-200">
-                    <button onclick="addSale()" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-xl">RECORD SALE</button>
+                    <button onclick="addSale()" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-xl active:scale-95 transition-all">RECORD SALE</button>
                 </div>
                 <div class="bg-white rounded-3xl shadow-sm border overflow-hidden">
                     <div class="p-4 border-b flex justify-between items-center bg-slate-50/50">
@@ -485,7 +525,7 @@
 
             <!-- HISTORY -->
             <div id="view-history" class="tab-content hidden space-y-4">
-                <input type="text" oninput="handleSearch(this.value)" placeholder="Search history..." class="w-full p-4 bg-white rounded-2xl border-none shadow-sm text-xs">
+                <input type="text" oninput="handleSearch(this.value)" placeholder="Search history..." class="w-full p-4 bg-white rounded-2xl border-none shadow-sm text-xs outline-none">
                 <div id="fullHistoryList" class="space-y-2"></div>
             </div>
 
@@ -493,11 +533,11 @@
             <div id="view-report" class="tab-content hidden space-y-4">
                 <div class="grid grid-cols-2 gap-3">
                     <div class="bg-white p-5 rounded-[2rem] border-2 border-green-500 shadow-md">
-                        <p class="text-[10px] font-black text-green-600 uppercase mb-1 tracking-tighter">Live Today Sale</p>
+                        <p class="text-[10px] font-black text-green-600 uppercase mb-1 tracking-tighter italic">Live Today Sale</p>
                         <h3 class="text-2xl font-black">₹<span id="liveTodayTotal">0</span></h3>
                     </div>
                     <div class="bg-white p-5 rounded-[2rem] border-2 border-blue-500 shadow-md">
-                        <p class="text-[10px] font-black text-blue-600 uppercase mb-1 tracking-tighter">Live Month Sale</p>
+                        <p class="text-[10px] font-black text-blue-600 uppercase mb-1 tracking-tighter italic">Live Month Sale</p>
                         <h3 class="text-2xl font-black">₹<span id="liveMonthTotal">0</span></h3>
                     </div>
                 </div>
@@ -512,7 +552,7 @@
                     <div class="flex gap-2 mb-6 overflow-x-auto no-scrollbar">
                         <button id="btn-today" onclick="setReportPeriod('today')" class="period-btn px-6 py-2 rounded-full text-[9px] font-black bg-slate-100 text-slate-500">Today</button>
                         <button id="btn-month" onclick="setReportPeriod('month')" class="period-btn active px-6 py-2 rounded-full text-[9px] font-black bg-green-700 text-white">This Month</button>
-                        <button id="btn-all" onclick="setReportPeriod('all')" class="period-btn px-6 py-2 rounded-full text-[9px] font-black bg-slate-100 text-slate-500">All Time</button>
+                        <button id="btn-all" onclick="setReportPeriod('all')" class="period-btn px-6 py-2 rounded-full text-[9px] font-black bg-slate-100 text-slate-500">All History</button>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4 mb-6">
@@ -525,18 +565,18 @@
                             <h3 class="text-lg font-black">₹<span id="rptBank">0</span></h3>
                         </div>
                         <div class="bg-amber-50 p-5 rounded-3xl border border-amber-100">
-                            <p class="text-[9px] font-black text-amber-600 uppercase">Lena Udhaar</p>
+                            <p class="text-[9px] font-black text-amber-600 uppercase tracking-tighter">Lena Udhaar</p>
                             <h3 class="text-lg font-black">₹<span id="rptLenaUdhaar">0</span></h3>
                         </div>
                         <div class="bg-red-50 p-5 rounded-3xl border border-red-100">
-                            <p class="text-[9px] font-black text-red-600 uppercase">Dena Udhaar</p>
+                            <p class="text-[9px] font-black text-red-600 uppercase tracking-tighter">Dena Udhaar</p>
                             <h3 class="text-lg font-black">₹<span id="rptDenaUdhaar">0</span></h3>
                         </div>
                     </div>
 
                     <div class="bg-orange-50 p-5 rounded-[2rem] border-2 border-orange-100 mb-6 flex justify-between items-center">
                         <div>
-                            <p class="text-[9px] font-black text-orange-600 uppercase mb-1">Personal Use Total</p>
+                            <p class="text-[9px] font-black text-orange-600 uppercase mb-1 tracking-widest">Personal Use Total</p>
                             <h3 class="text-xl font-black">₹<span id="rptPersonalTotal">0</span></h3>
                         </div>
                         <span class="text-3xl grayscale opacity-30">🏠</span>
@@ -549,10 +589,10 @@
 
                     <div class="mt-6">
                         <select id="historyPeriod" class="w-full p-4 bg-slate-50 border rounded-2xl text-xs font-bold mb-2">
-                            <option value="1">Last 1 Month CSV</option>
-                            <option value="12">Last 12 Months CSV</option>
+                            <option value="1">Download Last 1 Month CSV</option>
+                            <option value="12">Download Last 12 Months CSV</option>
                         </select>
-                        <button onclick="downloadFullHistory(document.getElementById('historyPeriod').value)" class="w-full bg-slate-800 text-white p-4 rounded-2xl font-black text-xs">DOWNLOAD DATA</button>
+                        <button onclick="downloadFullHistory(document.getElementById('historyPeriod').value)" class="w-full bg-slate-800 text-white p-4 rounded-2xl font-black text-xs uppercase tracking-widest">Get CA Report</button>
                     </div>
                 </div>
             </div>
@@ -561,7 +601,7 @@
     </main>
 
     <footer class="p-4 text-center text-[8px] text-gray-400 uppercase tracking-[0.4em] bg-white border-t">
-        Cloud Enterprise Sync Active • Personal & Profit Tracking Enabled
+        Enterprise Cloud Sync • Multi-Device Storage Active
     </footer>
 
 </body>
